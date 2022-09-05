@@ -62,13 +62,64 @@ metadata:
 
   - 前台级联删除（Foreground Cascading Deletion）
 
-    在这种删除策略中，所有者对象的删除将会持续到其所有从属对象都被删除为止。
+    在这种删除策略中，所有者对象的删除将会持续到其所有从属对象都被删除为止。当所有者被删除时，会进入“正在删除”（deletion in progress）状态，一旦对象被设置为 “正在删除” 状态，垃圾回收器将删除其从属对象。当垃圾回收器已经删除了所有的“blocking”从属对象（ownerReference.blockOwnerDeletion=true 的对象）以后，将删除所有者对象。
 
   - 后台级联删除（Background Cascading Deletion）
 
     这种删除策略会简单很多，它会立即删除所有者的对象，并由垃圾回收器在后台删除其从属对象。这种方式比前台级联删除快的多，因为不用等待时间来删除从属对象。
 
 - 孤儿（Orphan）：这种情况下，对所有者的进行删除只会将其从集群中删除，并使所有对象处于“孤儿”状态。
+
+  在孤儿删除策略（orphan deletion strategy）中，会直接删除所有者对象，并将从属对象中的 ownerReference 元数据设置为默认值。之后垃圾回收器会确定孤儿对象并将其删除。
+
+
+
+### 控制器代码参考
+
+```go
+import (
+	"context"
+	"fmt"
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	bucketv1 "bucket/api/v1"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+)
+
+func (r *BucketReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+	ctx := context.Background()
+	log := r.Log.WithValues("bucket", req.NamespacedName)
+
+	// your logic here
+	var bucket bucketv1.bucket
+	err := r.Get(context.Background(), req.NamespacedName, &bucket)
+	if err != nil {
+		log.Error(err, "获取bucket失败")
+		return ctrl.Result{}, nil
+	}
+
+	// 删除判断
+	if bucket.GetDeletionTimestamp() != nil {
+		// 删除相应的逻辑处理
+
+		// 删除Finalizer
+		controllerutil.RemoveFinalizer(&bucket.ObjectMeta, "bucket.tutorial.kubebuilder.io/bucket")
+
+		return ctrl.Result{}, nil
+	}
+
+	// 添加Finalizer，如果该Finalizer存在，则内部会跳过添加
+	controllerutil.AddFinalizer(&bucket.ObjectMeta, "bucket.tutorial.kubebuilder.io/bucket")
+
+	return ctrl.Result{}, nil
+}
+```
+
+
 
 
 

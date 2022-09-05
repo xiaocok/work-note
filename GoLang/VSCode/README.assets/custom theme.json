@@ -1,0 +1,95 @@
+{
+    "editor.tokenColorCustomizations": {
+
+        //"comments": "#55aa7f",
+        //"keywords": "#ff55ff",
+        //"variables": "#a792e2", 
+        //"strings": "#00ff7f",
+        //"functions": "#ffff00",
+        //"numbers": "#00eeff",
+        //"types": "#55bbff",
+        //文本匹配规则
+        // "textMateRules": [
+        //     {
+        //         "scope": "entity.name.type", //函数和类的名称颜色
+        //         "settings": {
+        //             "foreground": "#14fff3",
+        //         }
+        //     },
+        // ]
+        "[Monokai Night]": {
+            //"comments": "#ff6600",
+            //"functions": "#FF0000",
+            //"keywords": "#FF0000",
+            //"numbers": "#FF0000",
+            //"strings": "#FF0000",
+            //"types": "#FF0000",
+            //"variables": "#FF0000",
+            "textMateRules": [
+                {
+                    // 包名
+                    "scope": "entity.name.package.go",
+                    "settings": {
+                        "foreground": "#FD971F"
+                    }
+                },
+                {
+                    // 引入包名的别名
+                    "scope": "entity.alias.import.go",
+                    "settings": {
+                        "foreground": "#FD971F"
+                    }
+                },
+                {
+                    // 包名使用的地方
+                    "scope": "punctuation.other.period.go",
+                    "settings": {
+                        "foreground": "#FD971F"
+                    }
+                },
+                {
+                    // 定义的变量
+                    "scope": "variable.other.declaration.go",
+                    "settings": {
+                        "foreground": "#A6E22E"
+                    }
+                },
+                {
+                    // 赋值初始化的变量
+                    "scope": "variable.other.assignment.go",
+                    "settings": {
+                        "foreground": "#A6E22E"
+                    }
+                },
+                {
+                    // string类型
+                    "scope": "storage.type.string.go",
+                    "settings": {
+                        "foreground": "#F92672"
+                    }
+                },
+                {
+                    // bool类型
+                    "scope": "storage.type.boolean.go",
+                    "settings": {
+                        "foreground": "#F92672"
+                    }
+                },
+                {
+                    // 函数
+                    "scope": "entity.name.function.go",
+                    "settings": {
+                        "foreground": "#66D9EF"
+                    }
+                },
+                {
+                    // 结构体
+                    "scope": "entity.name.type.go",
+                    "settings": {
+                        "foreground": "#4584A5"
+                    }
+                }
+            ]
+        },
+    }
+}

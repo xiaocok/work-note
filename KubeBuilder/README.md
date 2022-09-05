@@ -126,7 +126,12 @@ func init() {
 
 [开发设计规范](开发设计规范.md)
 
-
+- 协调规则
+- kubebuilder-gen标记（注解）
+  - 更新CR的Status
+  - kubectl get 命令行显示的字段
+  - 别名SHORTNAMES
+- 
 
 
 
