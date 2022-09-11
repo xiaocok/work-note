@@ -44,25 +44,25 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
 
 ### 下载并编译go语言调试工具
 
-| **程序名**             | 安装命令                                                     | **程序用途**                                                 |
-| ---------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| dlv.exe                | go install github.com/go-delve/delve/cmd/dlv@latest          | go 语言调试工具                                              |
-| gocode.exe             | go install -v github.com/nsf/gocode@latest                   | go语言代码检查，自动补全<br/>不在维护，无法支持1.8版本以上自动补全 |
-| gocode.exe             | go install -v github.com/mdempsky/gocode@latest              | go语言代码检查，自动补全<br/>选择其他fork版本，比如：mdempsky/gocode。<br/>1.18版本以上使用 |
-| godef.exe              | go install -v github.com/rogpeppe/godef@latest               | go语言代码定义和引用的跳转                                   |
-| golint.exe             | go install -v golang.org/x/lint/golint@latest<br/>或者<br/>go get -u -v github.com/golang/lint/golint | go语言代码规范检查                                           |
-| go-outline.exe         | go install -v github.com/lukehoban/go-outline@latest         | 用于在Go源文件中提取JSON形式声明的简单工具<br/>File outline 文件大纲 |
-| gopkgs.exe             | go install -v github.com/tpng/gopkgs@latest                  | 快速列出可用包的工具<br/>Add Imports 添加引用                |
-| gorename.exe           | go install -v golang.org/x/tools/cmd/gorename@latest         | 在Go源代码中执行标识符的精确类型安全重命名                   |
-| goreturns.exe          | go install -v sourcegraph.com/sqs/goreturns@latest           | 类似fmt和import的工具，使用零值填充Go返回语句以匹配func返回类型 |
-| go-symbols.exe         | go install -v github.com/newhook/go-symbols@latest           | 从go源码树中提取JSON形式的包符号的工具<br/>Workspace symbol search 工作区符号搜索 |
-| gotour.exe             | go install -v github.com/Go-zh/tour/gotour@latest（中文）<br/>go install -v golang.org/x/tour/gotour@latest（英文） | go语言指南网页版                                             |
-| guru.exe               | go install -v golang.org/x/tools/cmd/guru@latest             | go语言源代码有关工具，如代码高亮等                           |
-| go-find-references.exe | github.com/lukehoban/go-find-references                      | Find References 搜索参考引用                                 |
-| fiximports.exe         | go install -v golang.org/x/tools/cmd/fiximports@latest       |                                                              |
-| goimports.exe          | go install -v golang.org/x/tools/cmd/goimports@latest        |                                                              |
-| godex.exe              | go install -v golang.org/x/tools/cmd/godex@latest            |                                                              |
-| gopls.exe              | go install -v golang.org/x/tools/gopls@latest                |                                                              |
+| **程序名**             | 安装命令                                                     | 当前版本/CommitID | **程序用途**                                                 |
+| ---------------------- | ------------------------------------------------------------ | ----------------- | ------------------------------------------------------------ |
+| dlv.exe                | go install github.com/go-delve/delve/cmd/dlv@latest          | v1.9.1            | go 语言调试工具                                              |
+| gocode.exe             | go install -v github.com/nsf/gocode@latest                   | 5bee97b           | go语言代码检查，自动补全<br/>不在维护，无法支持1.8版本以上自动补全 |
+| gocode.exe             | go install -v github.com/mdempsky/gocode@latest              | 4acdcbd           | go语言代码检查，自动补全<br/>选择其他fork版本，比如：mdempsky/gocode。<br/>1.18版本以上使用 |
+| godef.exe              | go install -v github.com/rogpeppe/godef@latest               | v1.1.2            | go语言代码定义和引用的跳转                                   |
+| golint.exe             | go install -v golang.org/x/lint/golint@latest<br/>go get -u -v github.com/golang/lint/golint | 6edffad           | go语言代码规范检查                                           |
+| go-outline.exe         | go install -v github.com/lukehoban/go-outline@latest         | e785568           | 用于在Go源文件中提取JSON形式声明的简单工具<br/>File outline 文件大纲 |
+| gopkgs.exe             | go install -v github.com/tpng/gopkgs@latest                  | 81e90e2           | 快速列出可用包的工具<br/>Add Imports 添加引用                |
+| gorename.exe           | go install -v golang.org/x/tools/cmd/gorename@latest<br/>github.com/golang/tools/cmd/gorename | d815cba           | 在Go源代码中执行标识符的精确类型安全重命名                   |
+| goreturns.exe          | go install -v github.com/sqs/goreturns@latest                | 538ac60           | 类似fmt和import的工具，使用零值填充Go返回语句以匹配func返回类型 |
+| go-symbols.exe         | go install -v github.com/newhook/go-symbols@latest           | b75dfef           | 从go源码树中提取JSON形式的包符号的工具<br/>Workspace symbol search 工作区符号搜索 |
+| gotour.exe             | go install -v github.com/Go-zh/tour/gotour@latest（中文）<br/>go install -v golang.org/x/tour/gotour@latest（英文） | f4baf0d           | go语言指南网页版                                             |
+| guru.exe               | go install -v golang.org/x/tools/cmd/guru@latest             | d815cba           | go语言源代码有关工具，如代码高亮等                           |
+| go-find-references.exe | github.com/lukehoban/go-find-references@42505ef<br/>github.com/redefiance/go-find-references@0a36091 |                   | Find References 搜索参考引用                                 |
+| fiximports.exe         | go install -v golang.org/x/tools/cmd/fiximports@latest<br/>github.com/golang/tools/cmd/fiximports | d815cba           |                                                              |
+| goimports.exe          | go install -v golang.org/x/tools/cmd/goimports@latest<br/>github.com/golang/tools/cmd/goimports | d815cba           |                                                              |
+| godex.exe              | go install -v golang.org/x/tools/cmd/godex@latest            | d815cba           |                                                              |
+| gopls.exe              | go install -v golang.org/x/tools/gopls@latest<br/>github.com/golang/tools/gopls | v0.9.4            |                                                              |
 
 
 
