@@ -380,3 +380,38 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
 
 ![在这里插入图片描述](README.assets/211a70502d7f4015a4a8a42f4789c4fb.png)
 
+
+
+
+
+
+
+## 快捷键
+
+| 键位             | 命令              | 说明                     |
+| ---------------- | ----------------- | ------------------------ |
+| Ctrl + `         | 打开终端/切换终端 | Esc下面的键              |
+| Ctrl + Shift + ` | 打开新的终端      |                          |
+| Ctrl + Shift + C | 打开外部终端      | Cmd终端                  |
+| Ctrl + \         | 拆分编辑器        | 编辑器右侧新建一个编辑器 |
+|                  |                   |                          |
+| Ctrl + P         | go to  file       |                          |
+| Ctrl +Shfit + P  | Show All Commands | 显示所有命令             |
+|                  |                   |                          |
+|                  |                   |                          |
+|                  |                   |                          |
+|                  |                   |                          |
+
+
+
+## 命令
+
+| 前置操作                                        | 命令                                 | 说明                                                         |
+| ----------------------------------------------- | ------------------------------------ | ------------------------------------------------------------ |
+| Ctrl + Shift + P                                | Go: Install/Update Tools             | 安装/更新go tools工具<br/>（老版本：一共17个工具，新版本：7个工具） |
+| 选中要测试的代码<br/> 右键                      | Go: Generate Unit Tests For Function | 自动生成测试代码<br/>可以在go插件的扩展配置中设置右键快捷操作 |
+| 选中要测试的代码<br/> Ctrl + Shift + P<br/>搜索 | Go: Fill struct                      |                                                              |
+|                                                 |                                      | 自动实现接口                                                 |
+| 选中要测试的代码<br/> 右键                      | Go: Add Tags To Struct Fields        | 自动增加Tag                                                  |
+| 选中要测试的代码<br/>Ctrl + Shift + P           | Go: Remove Tags From Struct Fields   | 自动删除Tag                                                  |
+
