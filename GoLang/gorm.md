@@ -77,12 +77,12 @@ gormDB.Preload("Posts.Comments").Find(&users)
 type User struct {
 	ID          uint   `gorm:"column(id)"`
 	Name        string `gorm:"column(name)"`
-	// joinForeignKey: 用于定义多对多关系中的外键字段。
-	// joinReferences: 用于指定多对多关系中被引用的主键字段。
-	// joinForeignKey: 指定中间表中的字段，该字段作为外键引用另一个表。
-	// joinReferences: 指定被引用的表中的字段。
-    // many2many：指定多对多的关系表
-	Groups []Group `gorm:"many2many:user_group;joinForeignKey:user_id;joinReferences:id"`
+    // foreignKey: 这个字段用来指定在关联表中用于表示本表记录的外键字段名。不指定，默认是本表的id字段：user.id。
+    // references: 指定当前表的字段引用的另一个表的字段名。不指定则为另外一个表的id字段：group.id。
+    // joinForeignKey: 在多对多关联的中间表中，用来标识当前模型记录的字段：user_group表。
+	// joinReferences: 在多对多关联的中间表中，用来标识另一个模型记录的字段：user_group表。
+    // many2many：指定多对多的关系表：user_group
+	Groups []Group `gorm:"many2many:user_group;joinForeignKey:user_id;joinReferences:group_id"`
 }
 
 type UserGroup struct {
@@ -94,14 +94,43 @@ type UserGroup struct {
 type Group struct {
 	ID   uint   `gorm:"column(id)"`
 	Name string `gorm:"column(name)"`
-	// 如果不需要查询User，这里不需要指定
-    // 如果需要查询group的user，这里需要定义user和gorm的tag。如果只查询user的group
-	Users []User `gorm:"many2many:user_group;joinForeignKey:group_id;joinReferences:group_id"`
 }
 ```
 
 ```go
 var users []User
+gormDB.Preload("Groups").Find(&users) // 获取用户及其关联的群组
+```
+
+> 自定义关联关系
+
+```go
+type User struct {
+	ID          uint   `gorm:"column(id)"`
+	Name        string `gorm:"column(name)"`
+    // foreignKey: 这个字段用来指定在关联表中用于表示本表记录的外键字段名：user.name。
+    // references: 指定当前表的字段引用的另一个表的字段名：group.name。
+    // joinForeignKey: 在多对多关联的中间表中，用来标识当前模型记录的字段：user_group.user_name。
+    // joinReferences: 在多对多关联的中间表中，用来标识另一个模型记录的字段：user_group.group_name。
+    // many2many：指定多对多的关系表：user_group
+	Groups []Group `gorm:"many2many:user_group;foreignKey:name;joinForeignKey:user_name;references:name;joinReferences:group_name"`
+}
+
+type UserGroup struct {
+	ID uint `gorm:"column:id"`
+	UserName  string  `gorm:"column:user_name"`
+	GroupName string  `gorm:"column:group_name"`
+}
+
+type Group struct {
+	ID   uint   `gorm:"column(id)"`
+	Name string `gorm:"column(name)"`
+}
+```
+
+```go
+var users []User
+// 定义各自的关联关系，使用多级关联模式查询
 gormDB.Preload("Groups").Find(&users) // 获取用户及其关联的群组
 ```
 
