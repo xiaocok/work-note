@@ -134,3 +134,91 @@ var users []User
 gormDB.Preload("Groups").Find(&users) // 获取用户及其关联的群组
 ```
 
+#### 多字段关联
+
+```go
+type User struct {
+	ID          uint   `gorm:"column(id)"`
+	Name        string `gorm:"column(name)"`
+	Type        string `gorm:"column(type)"`
+	// foreignKey是另外一张表的字段，references是本表的字段
+	Profile   *Profile `gorm:"foreignKey:user_name,user_type;references:name,type"` // 多个字段使用都好隔开
+}
+
+type Profile struct {
+	Id       uint   `gorm:"column:id"`
+	UserName string `gorm:"column:user_name"`
+	UserType string `gorm:"column:user_type"`
+}
+```
+
+```go
+var users []User
+gormDB.Preload("Profile").Find(&users)
+```
+
+#### Join
+
+```go
+type User struct {
+	ID   uint   `gorm:"column:id"`
+	Name string `gorm:"column(name)"`
+	Type string `gorm:"column(type)"`
+}
+
+type Profile struct {
+	ID       uint   `gorm:"column:id"`
+	UserName string `gorm:"column:user_name"`
+	UserType string `gorm:"column:user_type"`
+}
+
+type UserProfile struct{
+	User
+	Profile
+}
+```
+
+```go
+var userProfiles []UserProfile
+
+gormDB.Table("user").           // gormDB.Table("user") 或者 gormDB.Table(new(User))都可以
+    Select("user.*, profile.*").
+    Joins("LEFT JOIN profile ON profile.user_name = user.name AND profile.user_type = user.type").
+    Where("profile.id = ?", 1). // 可以添加额外的查询条件
+    Scan(&userProfiles)         // Scan方法用于填充userProfiles变量，它应该是一个包含Profile和User字段的结构体
+```
+
+#### Scopes
+
+```go
+type User struct {
+	ID   uint   `gorm:"column:id"`
+	Name string `gorm:"column(name)"`
+	Type string `gorm:"column(type)"`
+}
+
+type Profile struct {
+	ID       uint   `gorm:"column:id"`
+	UserName string `gorm:"column:user_name"`
+	UserType string `gorm:"column:user_type"`
+}
+
+type UserProfile struct{
+	User
+	Profile
+}
+```
+
+```go
+var userProfiles []UserProfile
+
+gormDB.Model(new(User)).Select("user.*,profile.*").Scopes(
+    func(db *gorm.DB) *gorm.DB {
+        return db.Joins("LEFT JOIN profile ON profile.name = user.name AND profile.email = user.email")
+    },
+    func(db *gorm.DB) *gorm.DB {
+        return db.Where("user.id in ?", []int{11, 12})
+    },
+).Scan(&userProfiles)
+```
+
