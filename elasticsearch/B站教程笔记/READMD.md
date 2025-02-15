@@ -1665,7 +1665,41 @@ POST my_index/_analyze
 }
 ```
 
-------
+
+
+```json
+PUT my_index
+{
+    "mappings": {
+        "properties": {
+            "title": {
+                "type": "text",
+                // 指定在 “索引文档时” 使用的分词器为 ik_max_word。ik_max_word 是 IK 分词器的一种模式，它会将文本进行最细粒度的分词，尽可能多地切分出词语。
+                "analyzer": "ik_max_word",
+                // 指定在 “搜索时” 使用的分词器为 ik_smart。ik_smart 是 IK 分词器的另一种模式，它会进行较粗粒度的分词，以提高搜索效率。
+                "search_analyzer": "ik_smart"
+            },
+            "content": {
+                "type": "text",
+                "analyzer": "ik_max_word",
+                "search_analyzer": "ik_smart"
+            },
+            "author": {
+                "type": "keyword"
+            },
+            "tags": {
+                "type": "keyword"
+            },
+            "date": {
+                "type": "date",
+                "format": "yyyy-MM-dd'T'HH:mm:ss"
+            }
+        }
+    }
+}
+```
+
+
 
 #### **自定义词典**
 
@@ -2495,7 +2529,12 @@ GET /employee/_search
         }
     }
 }
+// address like '%长沙java%' or remark like '%长沙java%'
 ```
+
+`multi_match` 会在多个字段里查找匹配项，只要在任意字段中匹配到就可能返回文档。
+
+
 
 
 
@@ -2736,9 +2775,11 @@ GET /employee/_search
 
 
 
-### bool query布尔查询
+### ▲组合查询
 
-布尔查询可以安装布尔逻辑条件组织多条查询语句，又有符合整个布尔条件的文档才会被搜索出来。
+#### ▲bool query布尔查询
+
+布尔查询可以安装布尔逻辑条件组织多条查询语句，只有符合整个布尔条件的文档才会被搜索出来。
 
 在布尔条件中，可以包含两种不同的上下文。
 
@@ -2747,12 +2788,12 @@ GET /employee/_search
 
 布尔查询一共支持4中组合类型：
 
-| 类型     | 说明                                                         |
-| -------- | ------------------------------------------------------------ |
-| must     | 可包含多个查询条件，每个条件均满足的文档才能被搜索到，每次查询需要计算相关度得分，属于搜索上下文 |
-| should   | 可包含多个查询条件，不存在must和filter条件时，至少需要满足多个查询条件中的一个，文档才能被搜索到，否则需要满足的条件数量不受限制，匹配到的查询越多相关度越高，也术语搜索上下文 |
-| filter   | 可包含多个过滤条件，每个条件均满足的文档才能被搜索到，每个过滤条件不计算相关度得分，结果在一定条件下被缓存，属于过滤上下文 |
-| must_not | 可包含多个过滤条件，每个条件均不满足的文档才会被搜索到，每个过滤条件不计算相关度得分，结果在一定条件下会被缓存，属于过滤上下文 |
+| 类型     | 上下文     | 说明                                                         |
+| -------- | ---------- | ------------------------------------------------------------ |
+| must     | 搜索上下文 | 可包含多个查询条件，每个条件均满足的文档才能被搜索到，每次查询需要计算相关度得分，属于搜索上下文 |
+| should   | 搜索上下文 | 可包含多个查询条件，不存在must和filter条件时，至少需要满足多个查询条件中的一个，文档才能被搜索到，否则需要满足的条件数量不受限制，匹配到的查询越多相关度越高，也术语搜索上下文 |
+| filter   | 过滤上下文 | 可包含多个过滤条件，每个条件均满足的文档才能被搜索到，每个过滤条件不计算相关度得分，结果在一定条件下被缓存，属于过滤上下文 |
+| must_not | 过滤上下文 | 可包含多个过滤条件，每个条件均不满足的文档才会被搜索到，每个过滤条件不计算相关度得分，结果在一定条件下会被缓存，属于过滤上下文 |
 
 ```json
 PUT /books
@@ -2869,9 +2910,47 @@ GET /books/_search
 }
 ```
 
+多个条件查询还可以使用以下方式，但是意义不同
+
+```json
+// title like '%Java编程%' AND description like '%性能优化%'
+GET /books/_search
+{
+    "query": {
+        "bool": {
+            "must": [
+                {"match": {"title": "Java编程"}},
+                {"match": {"description": "性能优化"}}
+            ]
+        }
+    }
+}
+
+// 使用multi_match表示多个条件
+// title like '%Java编程%' or title like '%性能优化%' or description like '%Java编程%' or description like '%性能优化%'
+GET /books/_search
+{
+    "query": {
+        "multi_match": {
+            "query": "Java编程 性能优化",
+            "fields": ["title", "description"]
+        }
+    }
+}
+
+// simple_query_string 查询使用 AND 操作符来要求 title 字段必须包含 “Java 编程” 且 description 字段必须包含 “性能优化”，这和原 bool 查询的语义是一致的。
+GET /books/_search
+{
+    "query": {
+        "simple_query_string": {
+            "query": "title:Java编程 AND description:性能优化",
+            "fields": ["title", "description"]
+        }
+    }
+}
+```
 
 
-### ▲组合查询
 
 ### highlight高亮显示实现
 
@@ -2987,7 +3066,240 @@ GET /products/_search
 
 ### 地理空间位置查询
 
+地理空间位置查询是数据库和我搜索系统中的一个重要特性，特别是在地理信息系统(GIS)和位置服务中。它允许用户基于地理位置信息来搜索和过滤数据。在ES这样的全文搜索引擎中，地理空间位置查询被广泛应用，例如在旅行、房地产、物流和零售等行业，用于提供基础位置和搜索功能。
+
+在ES中，地理空间数据通常存储在geo_point字段类型中。这种字段类型可以存储维度和精度坐标，用于表示地球上的一个点。
+
+以下是一个使用geo_distance查询的例子，它会找到距离特定点一定距离内的所有文档。
+
+1、确保索引中有一个geo_point字段，例如location。
+
+```json
+PUT /index-geo
+{
+    "mappings": {
+        "properties": {
+          "name": {
+            "type": "text",
+            "analyzer": "ik_max_word",
+            "search_analyzer": "ik_max_word"
+          },
+           "description": {
+            "type": "text"
+          },
+          "location": {
+            "type": "geo_point"
+          }
+        }
+    }
+}
+
+POST /index-geo/_bulk
+{ "index": { "_index": "index-geo" } }
+{ "name": "示例地点1", "description": "批量插入测试1", "location": { "lat": 40, "lon": 116.4 } }
+{ "index": { "_index": "index-geo" } }
+{ "name": "示例地点2", "description": "批量插入测试2", "location": { "lat": 39.9, "lon": 116.4 } }
+{ "index": { "_index": "index-geo" } }
+{ "name": "示例地点3", "description": "批量插入测试3", "location": { "lat": 39.9, "lon": 116.4010 } }
+```
+
+2、使用以下查询来找到距离给定坐标点（例如lat和lon）小于或等于10公里的所有文档：
+
+```json
+GET /index-geo/_search
+{
+    "query": {
+        "bool": {
+            "must": {
+                "match_all": {}
+            },
+            "filter": {
+                "geo_distance": {
+                    "distance": "10km",
+                    "distance_type": "arc",
+                    "location": {
+                        "lat": 39.9,
+                        "lon": 116.4
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+- bool	逻辑查询容器，用于组合多个查询子句
+- match_all 匹配所有文档的查询子句
+- geo_distance 地理距离查询，允许指定一个距离和点的坐标
+- distance_type 可以是arc（以地球表面的弧度单位）或plane（以直线距离为单位）。通常对于地球上的距离查询，建议使用arc
+- location 查询的参考点，不包含维度和经度坐标
+
+
+
+
+
 ### ElasticSearch8.x向量检索
+
+ES 8.x引入了一个重要的特性：向量检索（Vector Search）,特别是通过KNN（K-Nearest Neighbors）算法支持向量近邻检索。这一特性使得ES在机器学习、数据分析和推荐系统等领域的应用变得更加广泛和强大。
+
+向量检索的基本思路是，将文档（或数据项）表示为高维向量，并使用这些向量来执行相似性搜索。在ES中，这些向量被存储在dense_vector类型的字段中，然后使用KNN算法来找到与给定向量最相似的其他向量。
+
+```json
+PUT /image-index
+{
+    "mappings": {
+        "properties": {
+            "image-vector": {
+                "type": "dense_vector",
+	            "dims": 3
+            },
+            "title": {
+                "type": "text"
+            },
+            "file-type": {
+                "type": "keywrod"
+            },
+            "my_label": {
+                "type": "text"
+            }
+        }
+    }
+}
+
+POST image-index/_bulk
+{"index"： {}}
+{"image-vector": [-5, 9, 12], "title": "Image A", "file-type": "jpeg", "my_label": "red"}
+{"index"： {}}
+{"image-vector": [10, -2, 4], "title": "Image B", "file-type": "png", "my_label": "blue"}
+{"index"： {}}
+{"image-vector": [4, 0, -1], "title": "Image C", "file-type": "gif", "my_label": "red"}
+
+POST image-index/_search
+{
+    "knn": {
+        "field": "image-vector",
+        "query_vector": [-4, 10, -12],
+        "k": 10,
+        "num_candidates": 100
+    },
+    "fields": ["title", "file-type"]
+}
+```
+
+
+
+## 搜索相关性评分
+
+### 相关性概述
+
+在搜索引擎中，描述一个文档与查询语句匹配程度的度量标准。
+
+| 关键词   | 文档ID      |
+| -------- | ----------- |
+| JAVA     | 1,2,3       |
+| 设计模式 | 1,2,3,4,5,6 |
+| 多线程   | 2,3,7,9     |
+
+ES使用评分算法，根据查询条件与搜索索引文档的匹配程度来确定每个文档的相关性。
+
+如果同时查询 JAVA/设计模式/多线程 ：2，3文档的评分更高。
+
+查询结果中的：_score就是ES检索后返回的评分，文档评分越高，则该文档的相关性越高。
+
+
+
+### 计算相关性评分
+
+ES 5之前的版本，评分机制或者打分模型是基于TF-IDF实现的。从ES 5之后，默认的打分机制改为了Okapi BM25
+
+#### TF-IDF算法
+
+3个决定性因素指标：
+
+- TF 词频：检索词(分词后)在**文档中**出现的频率越高，相关性也越高。
+- IDF 逆向文本频率：每个检索词**在索引中出现**的频率，频率越高，相关度**越低**。
+- 字段长度归与一类：检索词出现在一个内容短的title要比同样的词出现在一个内容长的content字段的权重更大。
+
+
+
+##### **TF算分说明**
+
+搜索 “小米旗舰手机”
+
+**ES文档存储示例**
+
+| id   | goods_name                   | describe                | 匹配数 |
+| ---- | ---------------------------- | ----------------------- | ------ |
+| 1    | **小米** **手机**            | 手机中的战斗机          | 2      |
+| 2    | **小米**NFC**旗舰** **手机** | 小米手机，支持全功能NFC | 3      |
+| 3    | **旗舰**NFC**手机**          |                         | 2      |
+| 4    | **小米**耳机                 |                         | 1      |
+| 5    | 红米耳机                     |                         |        |
+| 6    | 红米手机                     |                         |        |
+
+**ES索引示例**
+
+| 是否命中索引 | Term Dic（分词、倒排索引） | Posting List（索引对应的id） |
+| ------------ | -------------------------- | ---------------------------- |
+| ✅            | 小米                       | 1,2,4                        |
+| ✅            | 旗舰                       | 2,3                          |
+| ✅            | 手机                       | 1,2,3                        |
+|              | 耳机                       | 4,5                          |
+|              | 红米                       | 5,6                          |
+|              | NFC                        | 2,3                          |
+
+评分高的是id=2的文档，在索引中出现了3次
+
+
+
+##### BM25
+
+和经典的TF-IDF相比，当TF无限增加时，BM25算分会趋于一个数值。
+
+
+
+##### 查看分值Explain
+
+通过Explain API查看TF-IDF
+
+```json
+GET /test_score/_search
+{
+    "explain": true,
+    "query": {
+        "match": {
+            "content": "elasticsearch"
+        }
+    }
+}
+
+GET /test_score/_explain/2
+{
+    "query": {
+        "match": {
+            "content": "elasticsearch"
+        }
+    }
+}
+```
+
+
+
+### 自定义评分策略
+
+#### Index Boost: 在索引层面修改相关性
+
+#### boosting: 修改文档相关性
+
+#### negative_boost: 降低相关性
+
+#### function_score: 自定义评分
+
+#### rescore_query: 查询后二次打分
+
+
+
+### 多字段搜索场景优化
 
 
 
