@@ -3289,17 +3289,284 @@ GET /test_score/_explain/2
 
 #### Index Boost: 在索引层面修改相关性
 
+Index Boost能在多个索引搜索时，为每一个索引配置不同的级别。所以它适用于索引级别调整评分。
+
+```json
+// 插入数据
+PUT /my_index_100a/_doc/1
+{
+    "subject": "subject 1"
+}
+PUT /my_index_100b/_doc/1
+{
+    "subject": "subject 1"
+}
+PUT /my_index_100c/_doc/1
+{
+    "subject": "subject 1"
+}
+
+// 普通查询：评分一样，查询结果可能受到数据插入的时候的影响，或者内部自定义排序规则
+POST /my_index_100*/_search
+{
+    "query": {
+        "trem": {
+            "subject.keyword": {
+                "value": "subject 1"
+            }
+        }
+    }
+}
+
+// 指定评分
+POST /my_index_100*/_search
+{
+    "query": {
+        "trem": {
+            "subject.keyword": {
+                "value": "subject 1"
+            }
+        }
+    },
+    // 指定索引级别的boost
+    "indices_boost": [
+        {
+            "my_index_100a": 1.5
+        },
+        {
+        	"my_index_100a": 1.2
+        },
+        {
+            "my_index_100a": 1
+        }
+    ]
+}
+```
+
+
+
 #### boosting: 修改文档相关性
+
+boosting可在查询时修改文档的相关度。boosting值所在范围不同，含义也不同。
+
+boosting  [0,1)，如0.2，代表降低评分
+
+boosting  =  1，不降低，也不提升评分，默认就是1
+
+boosting > 1，如1.5，代表提升评分
+
+```json
+POST /blogs/_bulk
+{"index":{"_id":1}}
+{"title": "Apple iPad","content":"Apple iPad,Apple iPad"}
+{"index":{"_id":2}}
+{"title": "Apple iPad,Apple iPad","content":"Apple iPad"}
+
+// 通用查询，结果评分一样
+GET /blogs/_search
+{
+    "query": {
+        "bool": {
+            "should": [
+                {
+                    "match": {
+                        "title": {
+                            "query": "apple,ipad"
+                        }
+                    }
+                },
+                {
+                    "match": {
+                        "content": {
+                            "query": "apple,ipad"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}
+
+// 指定文档结果评分
+GET /blogs/_search
+{
+    "query": {
+        "bool": {
+            "should": [
+                {
+                    "match": {
+                        "title": {
+                            "query": "apple,ipad",
+                            "boost": 4 // 指定title的评分更高
+                        }
+                    }
+                },
+                {
+                    "match": {
+                        "content": {
+                            "query": "apple,ipad",
+                            "boost": 1 // 评分默认就是1
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}
+```
+
+
 
 #### negative_boost: 降低相关性
 
+若对某些结果不满足，但又不想将其排除(must_not)，则可以考虑用negative_boost的方式。
+
+- negative_boost仅对查询中定义为negative的部分生效。
+- 计算评分时，不修改boosting部分positive的评分，而negative部分的评分则乘以negative_boost的值。
+- negative_boost取值为[0, 1.0]，如0.3
+
+案例：要求苹果公司的产品信息优先展示
+
+```json
+POST /news/_bulk
+{"index": {"_id": 1}}
+{"content": "Apple Mac"}
+{"index": {"_id": 2}}
+{"content": "Apple iPad"}
+{"index": {"_id": 3}}
+{"content": "Apple employee like Apple Pie and Apple Juice"}
+
+// 利用must_not排除不是苹果公司产品的文档
+GET /news/_search
+{
+    "query": {
+        "bool": {
+            "must": {
+                "match": {
+                    "content": "apple"
+                }
+            },
+            "must_not": {
+                "match": {
+                    "content": "pie"
+                }
+            }
+        }
+    }
+}
+
+// 利用negative_boost降低相关度
+GET /news/_search
+{
+    "query": {
+        "boosting": {
+            // 该模式下，必须制定下面3个键：positive、negative、negative_boost
+            "positive": {
+                "match": {
+                    "content": "apple"
+                }
+            },
+            "negative": {
+                "match": {
+                    "content": "pie"
+                }
+            },
+            // 对消极的negative计算得分在乘以negative_boost得到分值
+            "negative_boost": 0.2
+        }
+    }
+}
+```
+
+
+
 #### function_score: 自定义评分
 
+该方式支持用户自定义一个或者多个查询语句及脚本，到达精细化控制评分的目的，对搜索结果进行高度个性化的排序设置。适用于需要进行复杂查询的自定义评分业务场景。
+
+| 商品 | 销量 | 浏览人数 |
+| ---- | ---- | -------- |
+| A    | 10   | 10       |
+| B    | 20   | 20       |
+
+评分=原始评分x（销量+浏览人数）
+
+```json
+PUT /my_index_products/_bulk
+{"index": {"_id": 1}}
+{"name": "A", "sales": 10, "visitors": 10}
+{"index": {"_id": 2}}
+{"name": "B", "sales": 20, "visitors": 20}
+{"index": {"_id": 3}}
+{"name": "C", "sales": 30, "visitors": 30}
+
+POST /my_index_products/_search
+{
+    "query": {
+        "function_score": {
+            "query": {
+                "match_all": {}
+            },
+            "script_score": {
+                "script": {
+                    "source": "_score*(doc['sales'].value+doc['visitors'].value)"
+                }
+            }
+        }
+    }
+}
+```
+
+
+
 #### rescore_query: 查询后二次打分
+
+二次评分值重新计算查询所返回的结果文档中指定文档的得分。
+
+ES会截取查询返回的前N条结果，并使用预定义的二次评分方法来重新计算其得分。但对全部有序的结果集进行重新排序的话，开销势必很大，使用rescore_query可以只对结果集的子集进行处理，**该方式适用于对查询语句的结果不满足，需要重新打分的场景。**
+
+```json
+PUT /my_index_books_demo/_bulk
+{"index": {"_id": "1"}}
+{"title": "ES实战", "content": "ES的实战操作，实战要领，实战经验"}
+{"index": {"_id": "2"}}
+{"title": "MySQL实战", "content": "MySQL的实战操作"}
+{"index": {"_id": "3"}}
+{"title": "MySQL", "content": "MySQL一定要会"}
+
+// 查询content字段中包含“实战”的文档，权重为0.7
+// 并对文档中title为MySQL的文档增加评分，权重为1.2
+// window_size为50，表示取分片结果的前50进行重新算分
+GET /my_index_books_demo/_search
+{
+    "query": {
+        "match": {
+            "content": "实战"
+        }
+    },
+    "rescore": {
+        "query": {
+            // 重新算法的查询语句，筛选出需要重新算分的记录
+            "rescore_query": {
+                "match": {
+                    "title": "MySQL"
+                }
+            },
+            // 整体结果的算法，即上面的query的算法的权重为0.7
+            "query_weight": 0.7,
+            // 被重新算分(这里是筛选的title包含MySQL)的权重为1.2
+            "rescore_query_weight": 1.2
+        },
+        "window_size": 50
+    }
+}
+```
 
 
 
 ### 多字段搜索场景优化
+
+
 
 
 
