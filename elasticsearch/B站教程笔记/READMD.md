@@ -3566,7 +3566,138 @@ GET /my_index_books_demo/_search
 
 ### 多字段搜索场景优化
 
+#### 最佳字段（Best Fields）
 
+**多个字段中返回评分最高的**
+
+当字段之间相互竞争，又相互关联。例如，对于博客的title和body这样的字段，评分来自最匹配字段
+
+```json
+PUT /blogs/_doc/1
+{
+    "title": "Quick brown rabbits",
+    "body": "Brown rabbits are commonly seen."
+}
+
+PUT /blogs/_doc/2
+{
+    "title": "Keeping pets healthy",
+    "body": "My quick brown fox eats rabbits on a regular basis."
+}
+
+// 搜索棕色狐狸
+POST /blogs/_search
+{
+    "explain": true, // 可以查看评分详情
+    "query": {
+        "bool": {
+            "should": [
+                {"match": {"title": "Brown fox"}},
+                {"match": {"body": "Brown fox"}}
+            ]
+        }
+    }
+}
+```
+
+- 查询结果，id=1的评分最高，因为Id=1的title和body都包含了brown。而id=2的只有body包含brown fox获得评分，而title中没有匹配到，未获得评分。
+
+- bool should的算法过程
+
+  - 查询should语句中的两个查询
+  - 加和两个查询的评分：explain查看时使用的sum of:来计算
+  - 乘以匹配语句的总数
+  - 除以所有语句的总和
+
+  上述例子中，title和body属于竞争关系，不应该将分数简单叠加，而是应该找到单个最佳匹配的字段的评分。
+
+##### 使用dis max query查询
+
+```json
+POST /blogs/_search
+{
+    "explain": true, // 可以查看评分详情
+    "query": {
+        "dis_max": {
+            "queries": [
+                {"match": {"title": "Brown fox"}},
+                {"match": {"body": "Brown fox"}}
+            ]
+        }
+    }
+}
+```
+
+explain查看时使用的max of:来计算
+
+
+
+**可以通过tie_breaker参数调整**
+
+Tie Breaker是一个介于0-1之间的浮点数。0代表使用最佳匹配，1代表所有的语句同等重要。
+
+1. 获得最佳匹配语句的评分_score。
+2. 将其他匹配语句的评分与tie_breaker相乘
+3. 对以上评分求和并规范化
+
+最终得分=最佳匹配字段+其他匹配字段*tie_breaker
+
+> 设置其他字段的权重，实现最佳匹配的分数影响较高，其他字段的分数影响较低
+
+```json
+POST /blogs/_search
+{
+    "query": {
+        "dis_max": {
+            "queries": [
+                {"match": {"title": "Quick pets"}},
+                {"match": {"body": "Quick pets"}}
+            ],
+            "tie_breaker": 0.1
+        }
+    }
+}
+```
+
+
+
+##### 使用best_fields查询
+
+best_fields策略获取最佳匹配字段的得分，final_score=max(其他匹配字段得分，最佳匹配字段得分)
+
+采用best_fields查询，**并添加参数tie_breaker=0.1**，final_score=其他匹配字段得分*0.1+最佳匹配字段得分
+
+**Best Fields是默认类型，可以不用指定，等价于dis_max查询方式**
+
+```json
+PUT /blogs/_search
+{
+    "query": {
+        "multi_match": {
+            "type": "best_fields",
+            "query": "Brown fox",
+            "fields": ["title", "body"],
+            "tie_breaker": 0.2
+        }
+    }
+}
+```
+
+
+
+#### 多数字段（Most Fields）
+
+**匹配多个字段，返回各个字段评分总和**
+
+处理英文内容时的一种常见的手段是，在主字段（Engilish Analyzer），抽取词干，加入同义词，以匹配更多的文档。相同的文本，加入子字段（Standard Analyzer），所提供更加精准的匹配。其他字段作为匹配文档提高相关度信号，匹配字段越来越多则越好。
+
+
+
+#### 混合字段（Cross Fields）
+
+**跨字段匹配，待查询内容在多个字段中都显示**
+
+与某些实体，例如人名，地址，图书信息。需要在多个字段中确定信息，每个字段只能作为整体的一部分。希望在任何这些列出的字段中尽可能多的词。
 
 
 
