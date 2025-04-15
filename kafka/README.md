@@ -1,8 +1,169 @@
 
 
+## github.com/segmentio/kafka-go
+
+### 生产者
+
+#### 同步生产：批量生产
+
+> 默认为批量发送：通过批量发送消息，增加吞吐量。超过1s发送或者超过100条发送或者数据大小超过1M后发送。
+
+优点：
+
+- 发送效率高。
+
+缺点：
+
+- 一次性发送100条(BatchSize)，错误时，100条都收到相同错误信息，无法确定具体是那一条错误。不确定服务器端是全部成功，全部失败。还是存在部分成功，部分失败。
+- 存在还没有超过100条，或者BatchBytes，或者BatchTimeout，重启，那么可能存在消息丢失。需要维护一个消息发送成功的具体位置。如果维护这个位置存在部分少量的消息重复的情况。
+
+```go
+w := &kafka.Writer{
+    Addr:                   kafka.TCP("192.168.195.134:9092"),
+    Topic:                  "test",
+    Balancer:               &kafka.LeastBytes{},
+    RequiredAcks:           kafka.RequireAll,
+    BatchSize:              100,			// 批量发送消息：默认100，当缓存中存在100条时，触发发送
+    BatchBytes:             1048576,		// 批量发送消息：默认1048576（1M），当消息达到1M时，触发发送
+    BatchTimeout:           time.Second,    // 批量发送消息：默认1s，当消息累计1s后，触发发送
+    WriteTimeout:           time.Second * 10, 
+    MaxAttempts:            10,             // 最大尝试次数：发送消息的次数， 默认10次
+    Async:                  false,          // 默认false，同步发送，true异步发送
+}
+
+messages := []kafka.Message{
+    {Value: []byte("1")},
+    {Value: []byte("2")},
+    {Value: []byte("3")},
+}
+
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+// 批量发送消息：当消息没有出发100条和1M时，超过1s发送，这里批量发送，总共触发一次BatchTimeout，总共耗时1s
+// used time: 1.04s
+now := time.Now()
+// 消息的条数 大于 BatchSize会报错，消息的总大小 大于 BatchBytes，会报错。
+err := w.WriteMessages(ctx, messages...)
+fmt.Printf("used time: %s", time.Now().Sub(now).Truncate(time.Millisecond))
+if err != nil {
+    fmt.Println(err.Error())
+}
+
+// 循环发送消息：每条消息发送，都会触发一次BatchTimeout超时，公共耗时3s
+// used time: 3.022s
+now = time.Now()
+for i := range messages {
+    err := w.WriteMessages(ctx, messages[i])
+    if err != nil {
+        fmt.Println(err.Error())
+    }
+}
+fmt.Printf("used time: %s", time.Now().Sub(now).Truncate(time.Millisecond))
+
+_ = w.Close()
+```
+
+场景一：
+
+​	参数：BatchSize = 100，BatchTimeout = time.Second
+
+​	数据条数：220条
+
+​	发送流程：
+
+​		1、取1~100条，满足100条，统计前100条后，立即发送。
+
+​		2、取101~200条，满足100条，立即发送。
+
+​		3、取201~220条，不满足100条，等超时时间BatchTimeout (1秒)后，触发超时发送。
+
+场景二：
+
+​	参数：BatchSize = 100，BatchTimeout = time.Second
+
+​	数据条数：20条
+
+​	发送流程：
+
+​		1、取1~20条，不满足100条，等超时时间BatchTimeout (1秒)后，触发超时发送。
+
+总结：
+
+​	1、当每次发送的数据条数较小，小于BatchSize，则每次都会触发BatchTimeout 后发送，发送较慢。
+
+​	2、发送数据条数较多性能较好。
+
+
+
+#### 同步生产：单条生产
+
+缺点：性能慢
+
+优点：单条记录，失败或重启，重复生产的只有1条
+
+```go
+w := &kafka.Writer{
+    Addr:                   kafka.TCP("192.168.195.134:9092"),
+    Topic:                  "test",
+    Balancer:               &kafka.LeastBytes{},
+    RequiredAcks:           kafka.RequireAll,
+    BatchSize:              1,			    // 单条记录，立即发送
+    WriteTimeout:           time.Second * 10, 
+    MaxAttempts:            10,             // 最大尝试次数：发送消息的次数， 默认10次
+    Async:                  false,          // 默认false，同步发送，true异步发送
+}
+
+messages := []kafka.Message{
+    {Value: []byte("1")},
+}
+
+// 触发BatchSize，立即发送，不延迟
+err := w.WriteMessages(ctx, messages[i])
+if err != nil {
+    fmt.Println(err.Error())
+}
+_ = w.Close()
+```
+
+
+
+#### 异步生产
+
+```go
+w := &kafka.Writer{
+    Addr:                   kafka.TCP("192.168.195.134:9092"),
+    Topic:                  "test",
+    Balancer:               &kafka.LeastBytes{},
+    RequiredAcks:           kafka.RequireAll,
+    BatchSize:              1,			    // 单条记录，立即发送
+    WriteTimeout:           time.Second * 10, 
+    MaxAttempts:            10,             // 最大尝试次数：发送消息的次数， 默认10次
+    Async:                  true,           // 默认false，同步发送，true异步发送
+    // 异步生成，WriteMessages立即返回。实际发送消息跟同步生成一致，由BatchSize、BatchBytes、BatchTimeout3个参数决定。
+	// 由于立即返回，因此无法得到错误信息，通过这里完成后的回调函数实现处理处理。
+    Completion: func(messages []kafka.Message, err error) {
+
+    },
+}
+
+messages := []kafka.Message{
+    {Value: []byte("1")},
+}
+
+// 异步发送，立即返回
+err := w.WriteMessages(ctx, messages[i])
+if err != nil {
+    fmt.Println(err.Error())
+}
+_ = w.Close()
+```
+
+
+
 ### 消费者组
 
-#### 消费者组参数说明
+#### 缓冲队列、手动异步提交、StartOffset
 
 ```go
 kafka.ReaderConfig{
@@ -10,6 +171,8 @@ kafka.ReaderConfig{
     GroupID: groupID,
     Topic:   topic,
     // 队列容量，每次从服务器端获取消息时，最多缓存多少条消息。
+	// 初始化时，创建QueueCapacity这个长度的msg队列，主Reader进程会循环从服务器端读取数据，往msg队列中push数据。
+	// c.reader.FetchMessage(ctx)则从msg队列中pull获取数据。
     QueueCapacity: 100,
     // 自动提交的时间间隔：默认为0，关闭自动提交，采用手动提交模式
     // 消费者在每次调用 FetchMessage 获取消息后，会将消息的 Offset 缓存到内存中。这些 Offset 会被记录为“已消费但未提交”的状态。
@@ -49,7 +212,7 @@ for {
         continue
     }
 
-    // 底层会自动尝试3此提交
+    // 底层会自动尝试3次提交
     err = c.reader.CommitMessages(ctx, msg)
     if errors.Is(err, io.ErrClosedPipe) {
         // close
@@ -158,6 +321,96 @@ reader.Stats内容
 	"Topic": "test",
 	"Partition": "-1",
 	"DeprecatedFetchesWithTypo": 1
+}
+```
+
+
+
+#### 自动提交
+
+```go
+for {
+    // 消费者组模式，读取消息后，则立即直接提交。然后这里返回处理相关逻辑
+    m, err := reader.ReadMessage(ctx)
+    if err != nil {
+        break
+    }
+    // 处理消息...
+    
+    // 自动提交：无需再调用reader.CommitMessages(ctx, m)提交
+}
+```
+
+
+
+#### 手动提交：同步提交
+
+```go
+reader := kafka.NewReader(kafka.ReaderConfig{
+    Brokers: []string{"192.168.195.134:9092"},
+    Topic:   "test",
+    GroupID: "consumer-group-id",
+    StartOffset: kafka.FirstOffset, // kafka.FirstOffset最开始的位置，kafka.LastOffset最后的位置
+    MaxBytes:       10e6, // 10MB
+    GroupBalancers: []kafka.GroupBalancer{kafka.RangeGroupBalancer{}},
+    // 自动提交/手动提交：CommitInterval，自动提交Offset的时间间隔：默认为0，表示不自动提交offset
+    // CommitInterval = 0 手动提交Offset
+    // CommitInterval = 1s 表示每1s提交一次offset，无需手动调用reader.CommitMessages提交确认消息
+    CommitInterval: 0,
+    Logger:         kafka.LoggerFunc(Printf),
+    ErrorLogger:    kafka.LoggerFunc(Printf),
+})
+
+for {
+    m, err := reader.FetchMessage(ctx)
+    if err != nil {
+        break
+    }
+    // 处理消息...
+    
+    // 手动调用/同步提交：延迟等待提交服务器成功
+    if err := reader.CommitMessages(ctx, m); err != nil {
+        log.Printf("提交失败: %v", err)
+    }
+}
+```
+
+
+
+#### 手动提交：异步提交
+
+```go
+reader := kafka.NewReader(kafka.ReaderConfig{
+    Brokers: []string{"192.168.195.134:9092"},
+    Topic:   "test",
+    GroupID: "consumer-group-id",
+    StartOffset: kafka.FirstOffset, // kafka.FirstOffset最开始的位置，kafka.LastOffset最后的位置
+    MaxBytes:       10e6, // 10MB
+    GroupBalancers: []kafka.GroupBalancer{kafka.RangeGroupBalancer{}},
+    // 自动提交/手动提交：CommitInterval，自动提交Offset的时间间隔：默认为0，表示不自动提交offset
+    // CommitInterval = 0 手动提交Offset
+    // CommitInterval = 1s 表示每1s提交一次offset
+    // 消费者在每次调用 FetchMessage 获取消息后，会将消息的 Offset 缓存到内存中。这些 Offset 会被记录为“已消费但未提交”的状态。
+	// 自动提交模式会按照这个时间间隔，将已内存中标记为“已消费但未提交”的 Offset，并提交给 Kafka 服务器。
+	// 手动提交性能慢，自动提交性能快
+    CommitInterval: time.Second,
+    Logger:         kafka.LoggerFunc(Printf),
+    ErrorLogger:    kafka.LoggerFunc(Printf),
+})
+
+for {
+    m, err := reader.FetchMessage(ctx)
+    if err != nil {
+        break
+    }
+    // 处理消息...
+    
+    // 如果这里不手动触发reader.CommitMessages(ctx, m)提交，那么底层不会触发提交请求至服务器端，消息则一直未提交。
+	// 同步提交：阻塞，等待提交响应结果。将这里的Offset存入缓存，并发起提交请求，底层会自动尝试3此提交，并等待结果返回。
+	// 异步提交：立即返回，不阻塞。这里的提交是将Offset信息保存在内存中，等待时间到了后再提交，底层会自动尝试3此提交。
+    if err := reader.CommitMessages(ctx, m); err != nil {
+        log.Fatal("failed to commit messages:", err)
+    }
 }
 ```
 
@@ -302,4 +555,10 @@ fmt.Println(conn.ReadFirstOffset()) // 20739 <nil>
 fmt.Println(conn.ReadLastOffset())  // 20746 <nil>
 fmt.Println(conn.ReadOffsets())     // 20739 20746 <nil>  
 ```
+
+
+
+
+
+
 
