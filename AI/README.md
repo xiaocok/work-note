@@ -315,6 +315,549 @@ agent_chain.run("刚才我们都聊了些什么？")
 
 
 
+### Python
+
+#### pip加速
+
+常用镜像源地址：
+清华大学：https://pypi.tuna.tsinghua.edu.cn/simple
+阿里云：https://mirrors.aliyun.com/pypi/simple/
+豆瓣：https://pypi.douban.com/simple/
+
+1. 临时使用镜像源
+
+   在安装命令后加上 -i 参数指定镜像源，例如：
+
+   ```shell
+   pip install package_name -i https://pypi.tuna.tsinghua.edu.cn/simple
+   ```
+
+2. 永久配置镜像源
+
+   可以通过修改或创建 pip.conf 文件来永久设置镜像源
+
+   ```shell
+   # Windows 系统
+   # 在用户目录下创建或修改 %HOMEPATH%\pip\pip.ini 文件，添加以下内容：
+   
+   # Linux/macOS 系统
+   # 在用户目录下创建或修改 ~/.pip/pip.conf 文件，添加以下内容：
+   
+   [global]
+   index-url = https://pypi.tuna.tsinghua.edu.cn/simple
+   ```
+
+3. 使用代理
+
+   如果需要通过代理服务器访问网络，可以使用 --proxy 参数：
+
+   ```shell
+   pip install package_name --proxy http://user:password@proxy_ip:port
+   ```
+
+4. 升级 pip
+
+   确保你的 pip 是最新版本，以获得更好的性能和兼容性：
+
+   ```shell
+   pip install --upgrade pip
+   ```
+
+   通过以上方法，可以显著提升 pip 的下载速度，加快 Python 包的安装过程。
+
+
+
+#### 安装路径
+
+Python安装路径
+
+```shell
+用户目录\AppData\Local\Programs\Python\Python<版本>
+
+C:\Users\用户\AppData\Local\Programs\Python\Python<版本>
+```
+
+PIP安装路径
+
+```shell
+# Windows：
+C:\Users\用户\AppData\Local\Programs\Python\Python<版本>\Lib\site-packages
+
+# macOS / Linux：
+/usr/local/lib/python<版本>/site-packages/
+```
+
+虚拟环境（virtual environment）
+
+```shell
+# Windows 虚拟环境：
+<你的项目目录>\.venv\Lib\site-packages\
+
+# Unix 或 macOS 虚拟环境：
+<你的项目目录>/venv/lib/python<版本>/site-packages/
+```
+
+> 虚拟环境需要激活
+
+```shell
+# Linux/macOS
+source venv/bin/activate
+# 激活后提示符会变成这样：
+(venv) user@machine:~/project$
+
+# Windows CMD
+.venv\Scripts\activate
+# 激活后提示符会变成这样：
+(venv) C:\your\project\path>
+```
+
+**额外建议：避免混淆多个 Python 环境**
+
+可以使用更明确的方式调用虚拟环境中的 pip：
+
+```shell
+./venv/bin/pip install gensim nltk   # Linux/macOS
+.venv\Scripts\pip install gensim nltk  # Windows
+```
+
+
+
+**确认环境**
+
+```shell
+which python / where python
+
+C:\Users\YourName\AppData\Local\Programs\Python\Python<版本>\python.exe
+C:\Users\YourName\AppData\Local\Microsoft\WindowsApps\python.exe
+
+# 安装了Anaconda/Miniconda等工具的效果
+C:\Users\YourName\Anaconda3\python.exe
+C:\Users\YourName\AppData\Local\Programs\Python\Python<版本>\python.exe
+```
+
+- 第一个路径 是你实际安装的 Python 版本。
+- 第二个路径（如果有）可能是 Windows 10/11 自带的 Microsoft Store 版本 Python（通常不推荐使用）。
+- 如果你安装了 Anaconda、Miniconda 等工具，也可能出现在结果中。
+
+
+
+
+
+### AI框架
+
+训练：Llama2开源 -> PyTorch开源训练框架 -> CUDA
+
+
+
+### AI训练
+
+#### 安装Anaconda
+
+地址：
+
+https://www.anaconda.com/download/
+
+下载：
+
+https://www.anaconda.com/download/success
+
+Python版本
+
+**Python 3.12**
+
+下载文件名
+
+Anaconda3-2024.10-1-Windows-x86_64.exe
+
+
+
+### 大模型本地运行
+
+#### Ollama
+
+```shell
+ollama run deepseek-r1:1.5b
+```
+
+
+
+验证
+
+```shell
+# 浏览器打开
+http://localhost:11434/
+
+# Ollama is running
+```
+
+
+
+API接口
+
+[Ollama API使用详解！在本地调用API的详细教程](https://zhuanlan.zhihu.com/p/1900147836340926098)
+
+```shell
+POST http://localhost:11434/api/generate
+
+Header
+Content-Type: application/json
+
+raw Body
+{
+    "model": "deepseek-r1:1.5b",
+    "prompt":"你是谁？",
+    "stream":false
+}
+
+响应：
+{
+    "model": "deepseek-r1:1.5b",
+    "created_at": "2025-05-18T10:15:40.4866178Z",
+    "response": "<think>\n\n</think>\n\n您好！我是由中国的深度求索（DeepSeek）公司开发的智能助手DeepSeek-R1。如您有任何任何问题，我会尽我所能为您提供帮助。",
+    "done": true,
+    "done_reason": "stop",
+    "context": [
+        151644,
+        56568,
+        100165,
+        100165,
+        11319,
+        151645,
+        151648,
+        271,
+        151649,
+        271,
+        111308,
+        6313,
+        104198,
+        67071,
+        105538,
+        102217,
+        30918,
+        50984,
+        9909,
+        33464,
+        39350,
+        7552,
+        73218,
+        100013,
+        9370,
+        100168,
+        110498,
+        33464,
+        39350,
+        10911,
+        16,
+        1773,
+        29524,
+        87026,
+        110117,
+        99885,
+        86119,
+        3837,
+        105351,
+        99739,
+        35946,
+        111079,
+        113445,
+        100364,
+        1773
+    ],
+    "total_duration": 4420704300,
+    "load_duration": 1826048600,
+    "prompt_eval_count": 7,
+    "prompt_eval_duration": 142000000,
+    "eval_count": 40,
+    "eval_duration": 2448000000
+}
+```
+
+
+
+```shell
+curl --location --request POST 'http://localhost:11434/api/generate' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{
+    "model": "llama3.2",
+    "prompt": "Why is the sky blue?",
+    "stream": false
+}'
+```
+
+
+
+#### LM Studio
+
+[Ollama平替！LM Studio本地大模型调用实战](https://zhuanlan.zhihu.com/p/1899576951523509763)
+
+[LM Studio 教程：通过暴露本地端口实现局域网内客户端调用（LM Studio 作为本地 LLM API 服务器）](https://blog.csdn.net/a772304419/article/details/145800588)
+
+[LMstudio 部署模型后如何联网使用API](https://blog.csdn.net/yexiaomodemo/article/details/146222893)
+
+
+
+官方文档：https://lmstudio.ai/docs
+
+模型：https://lmstudio.ai/models
+
+```shell
+POST http://localhost:1234/v1/chat/completions
+
+Header
+Content-Type: application/json
+
+raw Body
+{
+    "model": "deepseek-r1:1.5b",
+    "messages": [
+        {
+            "role": "user", 
+            "content": "你的问题"
+        }
+    ]
+}
+
+响应：
+{
+    "id": "chatcmpl-vp35s423iqhgavdi6kmuc",
+    "object": "chat.completion",
+    "created": 1747571569,
+    "model": "deepseek-r1-distill-qwen-1.5b",
+    "choices": [
+        {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop", # 标识结束，后续不需要再交互
+            "message": {
+                "role": "assistant", # 机器人的回答
+                "content": "<think>\n\n</think>\n\n您好！我是由中国的深度求索（DeepSeek）公司开发的智能助手DeepSeek-R1。有关模型和产品的详细内容请参考官方文档。"
+            }
+        }
+    ],
+    "usage": {
+        "prompt_tokens": 5,
+        "completion_tokens": 37,
+        "total_tokens": 42
+    },
+    "stats": {},
+    "system_fingerprint": "deepseek-r1-distill-qwen-1.5b"
+}
+```
+
+
+
+```shell
+curl -X POST http://localhost:1234/v1/chat/completions \
+-H "Authorization: Bearer $DASHSCOPE_API_KEY" \
+-H "Content-Type: application/json" \
+-d '{
+    "model": "deepseek-r1",
+    "messages": [
+        {
+            "role": "user", 
+            "content": "你好"
+        },
+        {
+        	# 机器人AI的回复内容
+            "role": "assistant",
+            "content": "你好！很高兴见到你，有什么我可以帮忙的吗？"
+        },
+        {
+            "role": "user",
+            "content": "你是谁？"
+        }
+    ]
+}'
+```
+
+
+
+##### mcp的支持
+
+[LM Studio 官方文档 Tool支持](https://lmstudio.ai/docs/app/api/tools)
+
+[优雅地开发 MCP 服务器（一）MCP 中的 Resources，Prompts，Tools 和基本调试方法](https://zhuanlan.zhihu.com/p/32593727614)
+
+[使用 MCP C# SDK 实现 MCP Tool ](https://it.sohu.com/a/879650344_121124363)
+
+第一次：问问题，并告诉可用函数
+
+```shell
+curl -X POST http://localhost:1234/v1/chat/completions \
+-H "Content-Type: application/json" \
+-d '{
+    "model": "deepseek-r1:1.5b",
+    "messages": [
+        {
+            "role": "user", 
+            "content": "成都的天气怎么样？"
+        }
+    ],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_current_weather",
+                "description": "获取给定地点的天气",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "城市，比如杭州，北京，上海"
+                        }
+                    },
+                    "required": ["location"]
+                }
+            }
+        }
+    ],
+    "tool_choice": "auto",  # 可选：控制是否强制调用某个工具
+    "stream": "false"
+}'
+
+响应：
+{
+    "id": "chatcmpl-60wekyw63tsidef8ek15yl",
+    "object": "chat.completion",
+    "created": 1747573318,
+    "model": "deepseek-r1-distill-qwen-1.5b",
+    "choices": [
+        {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "tool_calls",  // stop：结束，tool_calls：调用函数
+            "message": {
+                "role": "assistant",		// user：用户的文本，assistant AI机器人的回答
+                "tool_calls": [
+                    {
+                        "id": "173859425",
+                        "type": "function",
+                        "function": {
+                            "name": "get_current_weather",
+                            "arguments": "{\"location\":\"成都\"}"
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "usage": {
+        "prompt_tokens": 349,
+        "completion_tokens": 275,
+        "total_tokens": 624
+    },
+    "stats": {},
+    "system_fingerprint": "deepseek-r1-distill-qwen-1.5b"
+}
+```
+
+调用第三方函数获取天气
+
+第二次：将天气返回给机器人
+
+```shell
+curl -X POST http://localhost:1234/v1/chat/completions \
+-H "Content-Type: application/json" \
+-d '{
+    "model": "deepseek-r1:1.5b",
+    "messages": [
+        {
+            "role": "user", 				// 用户的问题
+            "content": "成都的天气怎么样？"
+        }，
+        {
+            "role": "assistant", 			// 机器人的回答，响应中message的完整内容
+            "tool_calls": [
+               {
+                    "id": "173859425",
+                    "type": "function",
+                    "function": {
+                        "name": "get_current_weather",
+                        "arguments": "{\"location\":\"成都\"}"
+                    }
+                }
+            ]
+        },
+        {
+        	"role": "tool",					// 调用tool的返回
+        	"content": "37度"
+        }
+    ],
+    "tool_choice": "auto",  # 可选：控制是否强制调用某个工具
+    "stream": "false"
+}'
+```
+
+
+
+### MCP
+
+[MCP](https://github.com/modelcontextprotocol)
+
+[MCP Servers](https://github.com/modelcontextprotocol/servers)
+
+[MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+
+
+
+#### MCP Inspector（MCP调试）
+
+[Python-MCPInspector调试](https://blog.csdn.net/2301_77717148/article/details/147881127)
+
+
+
+Python-MCPInspector调试
+
+> 使用FastMCP开发MCPServer，熟悉【McpServer编码过程】+【MCPInspector调试方法】-> 可以这样理解：只编写一个McpServer，然后使用MCPInspector作为McpClient进行McpServer的调试
+
+
+
+![6f411de4d70d401d921fde10792ab32a](E:\WWW\work-note\AI\README.assets\6f411de4d70d401d921fde10792ab32a.gif)
+
+
+
+**整理流程**
+
+1. 编写传统的Service业务代码
+2. 在Service业务代码头上添加@tool装饰器，即可实现FastMCP的Tool功能
+3. 在Service业务代码头上添加@mcp.tool()装饰器，即可实现FastMCP的McpServer功能
+4. 主程序指定运行方法-stdio进程启动（但是不要自己去启动）
+5. 使用MCPInspector调试McpServer（2个步骤）
+   【mcp dev city_02_mcp_server.py】是启动mcpInspector并指定mcpServer的路径，
+   然后在Inspector中启动city_02_mcp_server.py->【uv run --with mcp mcp run city_02_mcp_server.py】
+
+
+
+**MCP Inspector调试**
+
+> 运行机制：先运行【MCPInspector】再运行【uv run --with mcp mcp run city_02_mcp_server.py】
+
+1. 安装MCP Inspector
+
+   ```shell
+   # 1-安装MCP Inspector
+   pip install mcp[cli]
+   ```
+
+2. 运行MCP Inspector服务
+
+   ```shell
+   # 2-运行MCP Inspector
+   # 运行MCP Inspector的Web客户端
+   mcp dev city_02_mcp_server.py
+   ```
+
+3. 访问MCP Inspector网页
+
+   > 新开命令行终端，运行调试的程序
+
+   再运行【uv run --with mcp mcp run city_02_mcp_server.py】
+
+   访问：http://127.0.0.1:6274
+
+
+
 ### 参考
 
 [【全748集】目前B站最全最细的AI大模型零基础全套教程，2025最新版，包含所有干货！七天就能从小白到大神！少走99%的弯路！存下吧！很难找全的！](https://www.bilibili.com/video/BV1uNk1YxEJQ/?spm_id_from=333.1387.favlist.content.click&vd_source=0eafa421f09152cc7c6c879ff42465e3)

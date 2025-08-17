@@ -1,8 +1,8 @@
 # ElasticSearch
 
-## 基础功能
+## 一、基础功能
 
-### 索引
+### 1.1、索引
 
 类似于数据库的表
 
@@ -291,7 +291,7 @@ URL 长度限制：
 
 **兼容：**
 
-​        ES做了一个兼容，及时使用GET请求，传递了POST的Body数据，ES也会从body中读取数据，兼容了这一场景。GET和POST的效果除了http层面的一些限制(如url长度等)，其他的看起来就一样了，但是GET方式传递POST的body方式不符合Rest风格，推荐还是按Rest风格来使用GET和POST。
+​        ES做了一个兼容，即使使用GET请求，传递了POST的Body数据，ES也会从body中读取数据，兼容了这一场景。GET和POST的效果除了http层面的一些限制(如url长度等)，其他的看起来就一样了，但是GET方式传递POST的body方式不符合Rest风格，推荐还是按Rest风格来使用GET和POST。
 
 ```json
 // 使用 GET 进行简单查询：
@@ -431,7 +431,7 @@ GET logs_2024/_search
 
 
 
-### 文档
+### 1.2、文档
 
 类似于数据库中的数据/记录
 
@@ -760,9 +760,9 @@ POST /employee/_delete_by_query
 
 
 
-## 最佳实践
+## 二、最佳实践
 
-### 关联关系
+### 2.1、关联关系
 
 #### 嵌套对象（Nested Object）
 
@@ -1299,7 +1299,7 @@ PUT /my_index
 
 
 
-## 分词器
+## 三、分词器
 
 ### analysis-icu
 
@@ -1738,11 +1738,9 @@ PUT my_index
 
 
 
-## ES 复杂查询/高级查询 DSL
+## 四、ES 复杂查询/高级查询 DSL
 
-
-
-### match_all匹配所有文档
+### 4.1、match_all匹配所有文档
 
 匹配索引中的所有文档，而不考虑任何的查询条件。默认只返回10条。
 
@@ -1812,7 +1810,7 @@ GET /<index_name>/_search
 
 
 
-### ▲精确匹配检索
+### 4.2、▲精确匹配检索
 
 精确匹配指的是搜索内容不经过文本分析直接用于文本匹配**（不需要分词：精确匹配/模糊匹配都不分词。全文检索会分词）**，这个过程类似于数据库的SQL查询，搜索的对象大多是索引的非text字段。此类检索主要应用于结构化数据，如ID、状态、和标签等。
 
@@ -2411,7 +2409,7 @@ GET /movies/_search
 
 
 
-### ▲全文检索
+### 4.3、▲全文检索
 
 全文检索指在基于相关性搜索和匹配文本数据。这些查询会对输入的文本进行分析，将其拆分为词项（单个单词），并执行诸如分词、词干处理和标准化等操作。
 
@@ -2775,7 +2773,7 @@ GET /employee/_search
 
 
 
-### ▲组合查询
+### 4.4、▲组合查询
 
 #### ▲bool query布尔查询
 
@@ -2952,7 +2950,7 @@ GET /books/_search
 
 
 
-### highlight高亮显示实现
+### 4.5、highlight高亮显示实现
 
 highlight关键字：可以让符合条件的文档中的关键字高亮。
 
@@ -3064,7 +3062,7 @@ GET /products/_search
 
 
 
-### 地理空间位置查询
+### 4.6、地理空间位置查询
 
 地理空间位置查询是数据库和我搜索系统中的一个重要特性，特别是在地理信息系统(GIS)和位置服务中。它允许用户基于地理位置信息来搜索和过滤数据。在ES这样的全文搜索引擎中，地理空间位置查询被广泛应用，例如在旅行、房地产、物流和零售等行业，用于提供基础位置和搜索功能。
 
@@ -3138,7 +3136,7 @@ GET /index-geo/_search
 
 
 
-### ElasticSearch8.x向量检索
+### 4.7、ElasticSearch8.x向量检索
 
 ES 8.x引入了一个重要的特性：向量检索（Vector Search）,特别是通过KNN（K-Nearest Neighbors）算法支持向量近邻检索。这一特性使得ES在机器学习、数据分析和推荐系统等领域的应用变得更加广泛和强大。
 
@@ -3188,9 +3186,9 @@ POST image-index/_search
 
 
 
-## 搜索相关性评分
+## 五、搜索相关性评分
 
-### 相关性概述
+### 5.1、相关性概述
 
 在搜索引擎中，描述一个文档与查询语句匹配程度的度量标准。
 
@@ -3208,7 +3206,7 @@ ES使用评分算法，根据查询条件与搜索索引文档的匹配程度来
 
 
 
-### 计算相关性评分
+### 5.2、计算相关性评分
 
 ES 5之前的版本，评分机制或者打分模型是基于TF-IDF实现的。从ES 5之后，默认的打分机制改为了Okapi BM25
 
@@ -3285,7 +3283,7 @@ GET /test_score/_explain/2
 
 
 
-### 自定义评分策略
+### 5.3、自定义评分策略
 
 #### Index Boost: 在索引层面修改相关性
 
@@ -3564,9 +3562,9 @@ GET /my_index_books_demo/_search
 
 
 
-### 多字段搜索场景优化
+### 5.4、多字段搜索场景优化
 
-#### 最佳字段（Best Fields）
+#### 5.4.1、最佳字段（Best Fields）
 
 **多个字段中返回评分最高的**
 
@@ -3674,8 +3672,8 @@ PUT /blogs/_search
 {
     "query": {
         "multi_match": {
-            "type": "best_fields",
             "query": "Brown fox",
+            "type": "best_fields",
             "fields": ["title", "body"],
             "tie_breaker": 0.2
         }
@@ -3685,19 +3683,1121 @@ PUT /blogs/_search
 
 
 
-#### 多数字段（Most Fields）
+#### 5.4.2、多数字段搜索（Most Fields）
 
 **匹配多个字段，返回各个字段评分总和**
 
+most_fields：表示它会尝试在任一字段中匹配到任一词项，并将匹配得分进行合并；类似于MySQL中的OR。
+
+> most_fields策略获取全部匹配的累计得分（综合全部匹配字段的得分），等价于bool should查询方式
+
+```json
+GET /employee/_explain/3
+{
+    "query": {
+        "multi_match": {
+            "query": "elasticsearch	beginner 湖北省 开封市",
+            "type": "most_fields", // 表示它会尝试在任一字段中匹配到任一词项，并将匹配得分进行合并（例如，如果content和address都匹配到了，则这个文档会得到一个较高的综合得分）。
+            "fields": [
+                "content",
+                "address"
+            ]
+        }
+    }
+}
+```
+
+类似的MySQL查询语句
+
+```sql
+SELECT *
+FROM employee
+WHERE content LIKE '%elasticsearch%' 
+   OR content LIKE '%beginner%' 
+   OR content LIKE '%湖北省%' 
+   OR content LIKE '%开封市%'
+   OR address LIKE '%elasticsearch%' 
+   OR address LIKE '%beginner%' 
+   OR address LIKE '%湖北省%' 
+   OR address LIKE '%开封市%';
+```
+
+
+
 处理英文内容时的一种常见的手段是，在主字段（Engilish Analyzer），抽取词干，加入同义词，以匹配更多的文档。相同的文本，加入子字段（Standard Analyzer），所提供更加精准的匹配。其他字段作为匹配文档提高相关度信号，匹配字段越来越多则越好。
 
+```json
+// 索引定义
+PUT /titles
+{
+    "mappings": {
+        "properties": {
+            "title": {
+                "type": "text",
+                "analyzer": "englist",
+                "fields": {
+                    "std": { // std是子字段分词，类似于keyword的关键字不分词效果
+                        "type": "text",
+                        "analyzer": "standard"
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 插入文档
+PUT /titles/_bulk
+{"index": {"_id": 1}}
+{"titles": "My dog barks"} 
+{"index": {"_id": 2}}
+{"titles": "I see a lot of barking dogs on the road"}
+
+// 分词分析
+// englist分词会把一些单词转换，例如barking进行时转化为bark等，而standard不会转换
+POST _analyze
+{
+    "analyzer": "english",
+    "text": "I see a lot of barking dogs on the road"
+}
+
+POST _analyze
+{
+    "analyzer": "standard",
+    "text": "I see a lot of barking dogs on the road"
+}
+
+// 查询
+GET titles/_search
+{
+    "query": {
+        "match": {
+            "title": "barking dogs"
+        }
+    }
+}
+
+// 用广度匹配字段title包括尽可能多的文档 - 以提升召回率 - 同时又使用字段title.std作为信号将相关度高的文档置于结果顶部
+GET titles/_search
+{
+    "query": {
+        "multi_match": {
+            "query": "barking dogs",
+            "type": "most_fields",
+            "fields": [
+                "title",
+                // "titles^10", // 每个字段对于最终评分的贡献可以使用boost来控制。比如：title更为总要
+                "title.std"
+            ]
+        }
+    }
+}
+```
 
 
-#### 混合字段（Cross Fields）
+
+#### 5.4.3、混合字段搜索/跨字段搜索（Cross Fields）
 
 **跨字段匹配，待查询内容在多个字段中都显示**
 
+> 搜索内容在多个字段中都显示，类似boost+ids_max组合
+
 与某些实体，例如人名，地址，图书信息。需要在多个字段中确定信息，每个字段只能作为整体的一部分。希望在任何这些列出的字段中尽可能多的词。
+
+
+
+**基本形式**
+
+```json
+GET /address/_search
+{
+    "query": {
+        "multi_match": {
+            "query": "",            // 匹配的内容
+            "type": "cross_fields",
+            "operator": "",         // 操作符：参数用于指定分词后的查询词项（terms）之间的逻辑关系。
+            "fields": [""]          // 匹配的字段
+        }
+    }
+}
+```
+
+- operator：操作符。`"or"` (默认值)。
+
+  - or: 只要文档在指定的字段组合中**匹配到任意一个**分词后的查询词项，该文档就会被返回。
+
+    - ```json
+      {
+          "query": "A B C",
+          "type": "cross_fields",
+          "operator": "or",
+          "fields": ["x", "y", "z"]
+      }
+      
+      SELECT *
+      FROM your_table
+      WHERE x LIKE '%A%' OR x LIKE '%B%' OR x LIKE '%C%'
+         OR y LIKE '%A%' OR y LIKE '%B%' OR y LIKE '%C%'
+         OR z LIKE '%A%' OR z LIKE '%B%' OR z LIKE '%C%';
+      ```
+
+  - and: 文档必须在指定的字段组合中**匹配到所有**分词后的查询词项，才会被返回。
+
+    - ```json
+      {
+          "query": "A B C",
+          "type": "cross_fields",
+          "operator": "and",
+          "fields": ["x", "y", "z"]
+      }
+      
+      
+      SELECT *
+      FROM address
+      WHERE (x LIKE '%A%' OR y LIKE '%A%' or z LIKE '%A%')
+        AND (x LIKE '%B%' OR y LIKE '%B%' or z LIKE '%B%')
+        AND (x LIKE '%C%' OR y LIKE '%C%' or z LIKE '%C%');
+      ```
+
+
+
+**例子：**
+
+```json
+PUT /address
+{
+    "settings": {
+        "index": {
+            "analysis.analyzer.default.type": "ik_max_word"
+        }
+    }
+}
+
+PUT /adress/_bulk
+{"index": "_id": "1"}
+{"province": "湖南", "city": "长沙"}
+{"index": "_id": "2"}
+{"province": "湖南", "city": "常德"}
+{"index": "_id": "3"}
+{"province": "广东", "city": "广州"}
+{"index": "_id": "4"}
+{"province": "湖南", "city": "邵阳"}
+
+// 使用most_fields不符合预期，不支持operator
+GET adress/_search
+{
+    "query": {
+        "multi_match": {
+            "query": "湖南常德",
+            "type": "most_fields",  // 表示它会尝试在任一字段中匹配到任一词项，并将匹配得分进行合并（例如，如果 "湖南" 在 province 匹配，"常德" 在 city 匹配，这个文档会得到一个较高的综合得分）。
+            "fields": ["province", "city"]
+        }
+    }
+}
+
+// 类似于
+SELECT *
+FROM adress
+WHERE (province LIKE '%湖南%' OR province LIKE '%常德%')
+   OR (city LIKE '%湖南%' OR city LIKE '%常德%');
+
+// cross_fields，支持operator
+// 与copy_to相比，其中一个优势就是它可以在搜索时为单个字段提升权重
+GET /address/_search
+{
+    "query": {
+        "multi_match": {
+            "query": "湖南常德",
+            "type": "cross_fields", // cross_fields 类型会将所有指定字段 (province, city) 视为一个联合字段。它会跨字段搜索分词后的词项。
+            "operator": "and",      // 要求所有分词后的词项都必须匹配。
+            "fields": ["province", "city"]
+        }
+    }
+}
+/*
+综合效果: 这个查询的语义是：
+找出那些 province 和 city 这两个字段合起来能够匹配 "湖南" 和 "常德" 这两个词的文档。
+具体来说，最理想的情况是：
+	province 字段的值包含 "湖南"。
+	city 字段的值包含 "常德"。
+Elasticsearch 会计算一个综合得分，优先返回 province="湖南" 且 city="常德" 的文档。
+*/
+
+
+```
+
+类似的MySQL语句
+
+```SQL
+-- ✅ 功能上最接近（但不如 FULLTEXT）
+SELECT *
+FROM address
+WHERE (province LIKE '%湖南%' OR city LIKE '%湖南%')
+  AND (province LIKE '%常德%' OR city LIKE '%常德%');
+```
+
+
+
+其他情况
+
+```json
+GET /address/_search
+{
+    "query": {
+        "multi_match": {
+            "query": "湖南常德武陵区",
+            "type": "cross_fields",
+            "operator": "and",
+            "fields": ["province", "city"]
+        }
+    }
+}
+
+/*
+综合效果: 这个查询的语义是：
+	找出那些 province 和 city 这两个字段合起来能够匹配 "湖南"、"常德" 和 "武陵区" 这三个词的文档。
+
+Elasticsearch 会优先返回 province="湖南" 且 city 包含 "常德" 和 "武陵区" 的文档。
+					   province 包含 "湖南" 和 "常德"，city 包含 "武陵区"（虽然不合理，但 ES 会考虑）。
+*/
+```
+
+类似的MySQL
+
+```SQL
+-- ✅ 功能上最直接（但需手动处理分词）
+SELECT *
+FROM address
+WHERE (province LIKE '%四川%' OR city LIKE '%四川%')
+  AND (province LIKE '%成都%' OR city LIKE '%成都%')
+  AND (province LIKE '%天府新区%' OR city LIKE '%天府新区%');
+```
+
+
+
+##### 可以使用copy...to解决，但是需要额外的存储空间
+
+> copy...to参数允许将多个字段的值复制到组字段中，然后可以将其作为单个字段进行查询
+
+```json
+PUT /address
+{
+    "mappings": {
+        "properties": {
+            "privince": {
+                "type": "keyword",
+                "copy_to": "full_address"
+            },
+            "city": {
+                "type": "text",
+                "copy_to": "full_address"
+            },
+        },
+        "setttings": {
+            "index": {
+                "analysis.analyzer.default.type": "ik_max_word"
+            }
+        }
+    }
+}
+
+PUT /adress/_bulk
+{"index": "_id": "1"}
+{"province": "湖南", "city": "长沙"}
+{"index": "_id": "2"}
+{"province": "湖南", "city": "常德"}
+{"index": "_id": "3"}
+{"province": "广东", "city": "广州"}
+{"index": "_id": "4"}
+{"province": "湖南", "city": "邵阳"}
+
+GET /address/_search
+{
+    "query": {
+        "match": {
+            "full_address": {
+            	"query": "湖南常德",
+                "operator": "and"
+        	}
+        }
+    }
+}
+```
+
+
+
+#### 5.4.4、关键区别总结[most_fields/cross_fields]
+
+| 特性             | `most_fields`                        | `cross_fields` (`operator: "or"`) |
+| :--------------- | :----------------------------------- | :-------------------------------- |
+| **字段处理方式** | 每个字段独立查询                     | 所有字段视为一个联合字段          |
+| **得分计算**     | 各字段得分合并（可能重复计算）       | 基于联合字段，避免重复计算        |
+| **词项匹配**     | 词项在任一字段匹配即可               | 词项在任一字段匹配即可            |
+| **结果集**       | 通常与 `cross_fields/or` 相同        | 通常与 `most_fields` 相同         |
+| **相关性排序**   | **可能不同**！匹配词多的字段得分更高 | **通常更合理**，避免了重复计算    |
+
+
+
+## 六、聚合操作
+
+### 6.1、指标聚合(Metric Aggregation)
+
+单值分析：只输出一个分析结果
+
+- min,max,avg,sun
+- Cardinality(类似distinct Count)
+
+多值分析：输出多个分析结果
+
+- stats（统计），extended stats
+- percentile（百分比），percentile rank
+- top hits（排在前面的示例）
+
+
+
+查询员工的最低最高和平均工资
+
+```json
+POST /employees/_search
+{
+    "aggs": {
+        "max_salary": { // 自定义字段
+            "max": {
+                "field": "salary"
+            }
+        },
+        "min_salary": { // 自定义字段
+            "min": {
+                "field": "salary"
+            }
+        },
+        "avg_salary": { // 自定义字段
+            "avg": {
+                "field": "salary"
+            }
+        },
+    }
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "max_salary": {
+            "value": 50000
+        },
+        "min_salary": {
+            "value": 9000
+        },
+        "avg_salary": {
+            "value": 24700
+        }
+    }
+}
+```
+
+直接统计，返回最大、最小、平均、总和、个数
+
+```json
+POST /employees/_search
+{
+    "aggs": {
+        "stats_salary": {
+            "stats": {
+                "field": "salary"
+            }
+        }
+    }
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "stats_salary": {
+            "count": 20,
+            "min": 9000,
+            "max": 50000,
+            "avg": 24700,
+            "sum": 494000
+        }
+    }
+}
+```
+
+
+
+cardinality对搜索结果去重：查询员工职位(cardinate)种类个数(类似distinct Count)
+
+```json
+POST /employees/_search
+{
+    "size": 0,
+    "aggs": {
+        "cardinate": {
+            "cardinality": {
+                "field": "job.keyword"
+            }
+        }
+	}
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "cardinate": {
+            "value": 7
+        }
+    }
+}
+```
+
+
+
+### 6.2、桶聚合(Bucket Aggregation)
+
+按照一定的规则，将文档分配到不同的桶中，从而达到分类的目的。
+
+- Trems, 需要字段支持fileddata
+  - keyword 默认支持fileddata(类似于select field, count(0) from table group by field)
+  - text需要再Mappings中开启fielddata，会按照分词后的结果进行分桶
+- 数字类型
+  - Range/Data Range
+  - Histogram(直方图)/Data Histogram
+- 支持嵌套：也就再桶里在做分桶
+
+
+
+#### Trems
+
+- field: 指定聚合字段
+- size:  指定聚合结果的数量
+- order: 指定聚合结果的排序方式，默认Bucket聚合会统计Bucket的文档数量，标记为 _count，并且按照 _count降序排列。
+
+
+
+获取job职位的分类信息
+
+```json
+GET /employees/_search
+{
+    "aggs": {
+        "jobs": { // 自定义返回字段
+            "terms": {
+                "field": "job.keyword",
+                "size": 10,
+                "order": {
+                    "_count": "desc" // 指定排序规则
+                }
+            }
+        }
+    }
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "buckets": [
+            {
+                "key": "Java Programmer"
+                "valye": 7
+            },
+            {
+                "key": "Javascript Programmer"
+                "valye": 4
+            },
+            {
+                "key": "QA"
+                "valye": 3
+            },
+            {
+                "key": "DBA"
+                "valye": 2
+            }
+        ]
+    }
+}
+```
+
+
+
+限定聚合范围
+
+只对salary薪资在10000元以上的文档聚合
+
+```json
+GET /employees/_search
+{
+    "query": { // query筛选之后再聚合
+        "range": {
+            "salary": {
+                "gte": 10000 
+            }
+        }
+    },
+    "size": 0,
+    "aggs": {
+        "jobs": { // 自定义返回字段
+            "terms": {
+                "field": "job.keyword",
+                "size": 10,
+                "order": {
+                    "_count": "desc" // 指定排序规则
+                }
+            }
+        }
+    }
+}
+```
+
+ 
+
+text类型的处理：对text字段打开fielddata，支持trems aggregation
+
+```json
+PUT /employees/_mappings
+{
+    "properties": {
+        "job": {
+            "type": "text",
+            "fielddata": true
+        }
+    }
+}
+
+// 对text字段进行分词，对分词后的terms
+GET /employees/_search
+{
+    "size": 0,
+    "aggs": {
+        "jobs": {
+            "terms": {
+                "field": "job"
+            }
+        }
+    }
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "buckets": [
+            {
+                "key": "Programmer"
+                "valye": 11
+            },
+            {
+                "key": "Java"
+                "valye": 7
+            },
+            {
+                "key": "Javascript"
+                "valye": 4
+            },
+            {
+                "key": "QA"
+                "valye": 3
+            }
+        ]
+    }
+}
+```
+
+
+
+#### 数字/范围
+
+**Range & Histogram 聚合**
+
+- 按照数字的范围，进行分桶
+- 在Range Aggregation中，可以自定义key
+
+
+
+Range示例：按照工资的Range分桶
+
+```json
+// Salary Range分桶，可以自定义key
+POST /employees/_mappings
+{
+    "szie": 0,
+    "aggs": {
+        "salary_range": {
+            "range": {
+                "field": "salary",
+                "ranges": [
+                    {
+                        "to":10000 // 10000以下
+                    },
+                    {
+                        "from": 10000, // 10000到20000： [10000, 20000)
+                        "to": 20000
+                    },
+                    {
+                        "key": ">20000", // 20000以上
+                        "from": 20000
+                    }
+                ]
+            }
+        }
+    }
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "buckets": [
+            {
+                "key": "*-10000.0",
+                "to": 10000,
+                "doc_count": 1
+            },
+            {
+                "key": "10000.0-20000.0",
+                "from": 10000.0,
+                "to": 20000.0,
+                "doc_count": 4
+            },
+            {
+                "key": ">20000",
+                "from": 20000.0,
+                "doc_count": 15
+            }
+        ]
+    }
+}
+```
+
+
+
+Histogram 示例：按照员工工资的间隔分桶
+
+```json
+// 工资0到10万，以5000一个区间进行分桶
+POST /employees/_mappings
+{
+	"szie": 0,
+	"aggs": {
+		"salary_histogram": {
+			"histogram": {
+				"field": "salary",
+				"interval": 5000,
+				"extended_bounds": {
+					"min": 0,
+					"max": 100000
+				}
+			}
+		}
+	}
+}
+               
+// 返回
+{
+    // ......
+    "aggregations": {
+        "buckets": [
+            {
+                "key": 0,
+                "doc_count": 0  // [0, 5000)
+            },
+            {
+                "key": 5000,
+                "doc_count": 1  // [5000, 10000)
+            },
+            {
+                 "key": 10000,
+                "doc_count": 0
+            },
+            {
+                 "key": 15000,
+                "doc_count": 4
+            }
+        ]
+    }
+}
+```
+
+
+
+#### 嵌套
+
+top_hits应用场景：当获取分桶后，桶内最匹配的顶部文档列表
+
+```json
+// 指定size,不同工种中，年纪最大的3个员工的具体信息
+POST /employees/search
+{
+    "size": 0,
+    "aggs": {
+        "jobs": {
+            "terms": {
+                "field": "job.keyword"
+            },
+            "aggs": {
+                "old_employee": { // 自定义key
+                    "to_hits": {
+                        "size": 3,
+                        "sort": [
+                            {
+                                "age": {
+                                    "order": "desc"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+按照工作类型分桶，并统计工资信息
+
+```json
+POST /employees/search
+{
+    "size": 0,
+    "aggs": {
+        "jobs": {
+            "terms": {
+                "field": "job.keyword"
+            },
+            "aggs": {
+                "salary": { // 自定义key
+                    "stats": {
+                        "field": "salary"
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+多次嵌套：根据工作类型分桶，然后按照性别分桶，计算工资的统计信息
+
+```json
+POST /employees/search
+{
+    "size": 0,
+    "aggs": {
+        "job_gender_stats": {
+            "terms": {
+                "field": "job.keyword"
+            },
+            "aggs": {
+                "gender_stats": { // 自定义key
+                    "term": {
+                        "field": "gender"
+                    },
+                    "aggs": {
+                    	"salary_stats": { // 自定义key
+                    		"stats": {
+		                        "field": "salary"
+        		            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+
+
+### 6.3、管道聚合(Pipeline Aggregation)
+
+支持对聚合分析的结果，再次进行聚合分析。Pipeline的分析结果会输出到原结果中，根据位置的不同，分为两类：
+
+- Sibling：结果和现有分析结果同级
+  - max,min,avg&Sum Bucket
+  - Stats,Extended Status Bucket
+  - Percetniles Bucket
+- Parent：结果内嵌到现有的聚合分析结果之中
+  - Derivarive(求导)
+  - Cumultive Sum（累计求和）
+  - Moving Function(移动平均值)
+
+
+
+
+
+## 总结
+
+### 查询匹配
+
+#### 1. Bool 查询
+
+`bool` 查询允许你组合多个查询条件（通过 `must`, `should`, `must_not` 和 `filter` 子句）。这对于需要同时满足多个精确条件的场景非常有用。
+
+- **`must`**: 所有条件都必须为真，子句中的条件必须全部满足。
+- **`must_not`**:子句用于**排除**那些匹配指定查询条件的文档。可以把它理解为 SQL 中的 `NOT` 或 `!=` 操作。
+- **`should`** 子句中的条件至少需要满足一个（由 `minimum_should_match` 参数控制）。
+- **`filter`**: 类似于 `must`，但是不会影响评分，只用于过滤文档；子句用于过滤结果集，这里的条件不会影响评分，仅用于减少返回的文档数量。
+- **`match`** 模糊匹配
+- **`term`** 或 **`terms`**精确匹配
+- **示例**:
+
+```
+GET /_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        { "match": { "title": "Elasticsearch" }},
+        { "match": { "author": "Qwen" }}
+      ]
+    }
+  }
+}
+
+GET /_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        { "match": { "title": "Elasticsearch" }},
+        { "term": { "author.keyword": "Qwen" }},
+        { "term": { "status.keyword": "published" }}
+      ]
+    }
+  }
+}
+
+GET /_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        { "match": { "title": "Elasticsearch" }}
+      ],
+      "should": [
+        { "term": { "category.keyword": "tech" }},
+        { "term": { "category.keyword": "tutorial" }}
+      ],
+      "minimum_should_match": 1,
+      "filter": [
+        { "term": { "status.keyword": "published" }}
+      ]
+    }
+  }
+}
+```
+
+#### 2. Term 和 Terms 查询
+
+- **Term 查询**: 精确匹配一个字段的一个值。
+- **Terms 查询**: 精确匹配一个字段的多个值（等价于 SQL 中的 IN 操作）。
+- **示例**:
+
+```
+GET /_search
+{
+  "query": {
+    "term": {
+      "status": "published"
+    }
+  }
+}
+
+// 或者使用 terms 查询
+GET /_search
+{
+  "query": {
+    "terms": {
+      "status": ["published", "draft"]
+    }
+  }
+}
+```
+
+#### 3. Constant Score 查询
+
+如果你不关心文档的相关性分数，并且只想根据某些条件来过滤文档，你可以使用 `constant_score` 查询包裹 term 或 terms 查询。这种方式通常用于提高性能，因为它避免了计算相关性分数。
+
+- **示例**:
+
+```
+GET /_search
+{
+  "query": {
+    "constant_score": {
+      "filter": {
+        "term": {
+          "status": "published"
+        }
+      }
+    }
+  }
+}
+```
+
+#### 4. Match 查询 (对于全文搜索)
+
+虽然 `match` 查询主要用于全文搜索，但它也可以用来进行精确匹配（特别是当字段被分析器处理过时），不过它不如 `term` 或 `terms` 查询那样精准。
+
+- **示例**:
+
+```
+GET /_search
+{
+  "query": {
+    "match": {
+      "title": "Elasticsearch"
+    }
+  }
+}
+```
+
+
+
+### 排序、时间排序
+
+#### 1、时间字段的索引创建
+
+1. 显式定义日期类型
+
+   在索引的映射（mapping）中，需明确指定字段类型为`date`，并设置支持的日期格式。ES默认支持`strict_date_optional_time`等格式，但自定义格式需通过`format`参数声明。
+
+   ```
+   PUT /your_index
+   {
+     "mappings": {
+       "properties": {
+         "timestamp": {
+           "type": "date",
+           "format": "yyyy-MM-dd HH:mm:ss||epoch_millis"  // 支持多种格式
+         }
+       }
+     }
+   }
+   ```
+
+   - **注意**：若使用动态映射（dynamic mapping），ES可能误判时间为`text`类型，导致查询异常。
+
+2. 自动时间戳字段
+
+   通过Ingest Pipeline在索引时自动填充时间字段（如`@timestamp`）：
+
+   ```
+   PUT _ingest/pipeline/add_timestamp
+   {
+     "processors": [
+       {
+         "set": {
+           "field": "@timestamp",
+           "value": "{{_ingest.timestamp}}"
+         }
+       }
+     ]
+   }
+   ```
+
+   在索引设置中关联该Pipeline。
+
+#### 2、按时间排序查询
+
+1. 基础排序
+
+   使用`sort`参数指定时间字段及排序方向（`asc`/`desc`）：
+
+   ```
+   GET /your_index/_search
+   {
+     "query": { "match_all": {} },
+     "sort": [{ "timestamp": { "order": "desc" } }]
+   }
+   ```
+
+   - 若需多字段排序（如时间相同则按ID排序）：
+
+   ```
+   json暗色复制"sort": [
+     { "timestamp": "desc" },
+     { "_id": "asc" }
+   ]
+   ```
+
+2. 范围查询
+
+   使用`range`查询过滤特定时间区间，支持相对时间（如`now-7d`）或绝对时间：
+
+   ```
+   {
+     "query": {
+       "range": {
+         "timestamp": {
+           "gte": "2025-01-01",
+           "lte": "now",
+           "format": "yyyy-MM-dd"
+         }
+       }
+     }
+   }
+   ```
+
+   - **时区处理**：通过`time_zone`参数调整（如`"time_zone": "Asia/Shanghai"`）。
+
+3. 性能优化
+
+   - 对时间字段启用`doc_values`（默认开启），提升排序效率。
+   - 使用`date_histogram`聚合按时间区间分组。
+
+### 翻页查询
+
+#### 1、`from+size`分页（浅分页）
+
+适用于小数据集，性能较差（分页越深越慢）：
+
+```
+GET /your_index/_search
+{
+  "from": 0,  // 起始位置
+  "size": 10,  // 每页数量
+  "query": { "match_all": {} },
+  "sort": [{ "timestamp": "desc" }]
+}
+```
+
+- **限制**：默认最大分页数为10000（`max_result_window`）。
+
+#### 2、`scroll` API（深分页）
+
+适用于海量数据导出，基于快照查询：
+
+```
+POST /your_index/_search?scroll=1m
+{
+  "size": 1000,
+  "sort": [{ "timestamp": "desc" }]
+}
+// 后续请求使用返回的_scroll_id
+POST /_search/scroll
+{
+  "scroll": "1m",
+  "scroll_id": "DXF1ZXJ5QW5kRmV0Y2gBAAAAAA..."
+}
+```
+
+#### 3、`search_after`分页（推荐）
+
+基于上一页最后一条数据的排序值，支持实时数据变更：
+
+```
+GET /your_index/_search
+{
+  "query": { "match_all": {} },
+  "sort": [{ "timestamp": "desc" }, { "_id": "desc" }],
+  "search_after": [1620000000000, "last_doc_id"],  // 上一页最后一条文档的排序值  1620000000000表示时间排序字段的数值：2021-5-3 8:0:0的时间
+  "size": 10
+}
+```
 
 
 
@@ -3799,3 +4899,4 @@ sudo systemctl restart elasticsearch
 
 [ElasticSearch中字符串keyword和text类型区别](https://baijiahao.baidu.com/s?id=1763386735571186685)
 
+[ElasticSearch 动态映射和静态映射，以及四种字段类型](https://juejin.cn/post/6900719062104408078)
