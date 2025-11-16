@@ -4044,7 +4044,7 @@ GET /address/_search
 
 单值分析：只输出一个分析结果
 
-- min,max,avg,sun
+- min,max,avg,sum
 - Cardinality(类似distinct Count)
 
 多值分析：输出多个分析结果
@@ -4075,7 +4075,7 @@ POST /employees/_search
             "avg": {
                 "field": "salary"
             }
-        },
+        }
     }
 }
 
@@ -4174,6 +4174,10 @@ POST /employees/_search
 - field: 指定聚合字段
 - size:  指定聚合结果的数量
 - order: 指定聚合结果的排序方式，默认Bucket聚合会统计Bucket的文档数量，标记为 _count，并且按照 _count降序排列。
+  - **默认排序规则**：`terms` 聚合默认会按照每个 term 的 **文档数量（doc_count）从高到低排序**，也就是**降序（descending）**，优先返回出现频率最高的 term。这相当于显式地设置：`"order": { "_count": "desc" }`
+  - 按 term 字典序升序或降序：`"order": { "_key": "asc" }`
+  - 按其他指标排序（如聚合子聚合的平均值）：`"order": { "avg_price": "desc" }`
+
 
 
 
@@ -4187,8 +4191,8 @@ GET /employees/_search
             "terms": {
                 "field": "job.keyword",
                 "size": 10,
-                "order": {
-                    "_count": "desc" // 指定排序规则
+                "order": { // 默认排序：按文档的个数降序
+                    "_count": "desc" // 也可以指定排序规则
                 }
             }
         }
@@ -4518,13 +4522,531 @@ POST /employees/search
 - Sibling：结果和现有分析结果同级
   - max,min,avg&Sum Bucket
   - Stats,Extended Status Bucket
-  - Percetniles Bucket
+  - Percetniles Bucket(百分位桶)
 - Parent：结果内嵌到现有的聚合分析结果之中
   - Derivarive(求导)
-  - Cumultive Sum（累计求和）
+  - Cumulative Sum（累计求和）
   - Moving Function(移动平均值)
 
 
+
+#### Sibling统计
+
+##### min_bucket
+
+在员工数最多的工种里，找出平均工资最低的工种
+
+```json
+// 平均工资最低的工种
+POST /employees/search
+{
+    "size": 0,
+    "aggs": {
+        "jobs": {
+            "terms": {
+                "field": "job.keyword", // 默认是job的值的个数的降序
+                "size": 10				// 取前10个
+            },
+            "aggs": {
+                "avg_salary": {
+                    "avg": {			// 取平均值
+                        "field": "salary"
+                    }
+                }
+            }
+        }
+    },
+    "min_salary_by_job": {
+        "min_bucket": {		// 求之前结果的最小值
+            "buckets_path": "jobs>avg_salary"
+        }
+    }
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "buckets": [
+            {
+                "key": "Java Programer",
+                "doc_count": 7,
+                "avg_salary": {
+                    "value": 25571.4285
+                }
+            },
+            {
+                "key": "Javascript Programer",
+                "doc_count": 4,
+                "avg_salary": {
+                    "value": 19250
+                }
+            },
+            {
+                "key": "QA",
+                "doc_count": 3,
+                "avg_salary": {
+                    "value": 21000
+                }
+            },
+            {
+                "key": "DBA",
+                "doc_count": 3,
+                "avg_salary": {
+                    "value": 25000
+                }
+            },
+            {
+                "key": "Web Designer",
+                "doc_count": 2,
+                "avg_salary": {
+                    "value": 20000
+                }
+            },
+            {
+                "key": "Dev Designer",
+                "doc_count": 1,
+                "avg_salary": {
+                    "value": 50000
+                }
+            },
+            {
+                "key": "Product Manager",
+                "doc_count": 1,
+                "avg_salary": {
+                    "value": 35000
+                }
+            }
+        ]
+    },
+    "min_salary_by_job": {
+        "value": 19250,
+        "keys": [
+            "Javascript Programer"
+        ]
+    }
+}
+```
+
+- min_salary_by_job：结果和jobs聚合同级
+- min_bucket：求之前结果的最小值
+- buckets_path：关键字，指定路径
+
+
+
+##### stats
+
+```json
+// 平均工资的统计分析
+POST /employees/search
+{
+    "size": 0,
+    "aggs": {
+        "jobs": {
+            "terms": {
+                "field": "job.keyword",
+                "size": 10
+            },
+            "aggs": {
+                "avg_salary": {
+                    "avg": {
+                        "field": "salary"
+                    }
+                }
+            }
+        }
+    },
+    "stats_salary_by_job": {
+        "stats_bucket": {
+            "backets_path": "jobs>avg_salary"
+        }
+    }
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "buckets": [
+            {
+                "key": "Java Programer",
+                "doc_count": 7,
+                "avg_salary": {
+                    "value": 25571.4285
+                }
+            },
+            {
+                "key": "Javascript Programer",
+                "doc_count": 4,
+                "avg_salary": {
+                    "value": 19250
+                }
+            },
+            {
+                "key": "QA",
+                "doc_count": 3,
+                "avg_salary": {
+                    "value": 21000
+                }
+            },
+            {
+                "key": "DBA",
+                "doc_count": 3,
+                "avg_salary": {
+                    "value": 25000
+                }
+            },
+            {
+                "key": "Web Designer",
+                "doc_count": 2,
+                "avg_salary": {
+                    "value": 20000
+                }
+            },
+            {
+                "key": "Dev Designer",
+                "doc_count": 1,
+                "avg_salary": {
+                    "value": 50000
+                }
+            },
+            {
+                "key": "Product Manager",
+                "doc_count": 1,
+                "avg_salary": {
+                    "value": 35000
+                }
+            }
+        ]
+    },
+    "stats_salary_by_job": {
+        "count": 7,
+        "min": 19250,
+        "max": 50000,
+        "avg": 27974.2897,
+        "sum": 195821.4285
+    }
+}
+```
+
+
+
+##### percetniles 
+
+```json
+// 平均工资的百分位数
+POST /employees/search
+{
+    "size": 0,
+    "aggs": {
+        "jobs": {
+            "terms": {
+                "field": "job.keyword",
+                "size": 10
+            },
+            "aggs": {
+                "avg_salary": {
+                    "avg": {
+                        "field": "salary"
+                    }
+                }
+            }
+        }
+    },
+    "percenttiles_salary_by_job": {
+        "percenttiles_bucket": {
+            "backets_path": "jobs>avg_salary"
+        }
+    }
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "buckets": [
+			// ......
+        ]
+    },
+    "percenttiles_salary_by_job": {
+        "values": {
+            "1.0": 19250,
+            "5.0": 19250,
+            "25.0": 21000,
+            "50.0": 25000,
+            "75.0": 35000,
+            "95.0": 50000,
+            "99.0": 50000
+        }
+    }
+}
+```
+
+
+
+#### Parent内嵌
+
+##### Cumulative Sum
+
+```json
+// 累计求和
+POST /employees/search
+{
+    "size": 0,
+    "aggs": {
+        "age": {
+            "histogram": {		// 直方图
+                "field": "age",
+                "min_doc_count": 0,
+                "interval": 1
+            },
+            "aggs": {
+                "avg_salary": {		// 自定义key：计算平均薪资
+                    "avg": {		// avg平均值关键字
+                        "field": "salary"
+                    }
+                }
+            },
+            "cumulative_salary": {					// 自定义key
+                "cumulative_sum": { 				// cumulative_sum累计求和关键字 
+                    "backets_path": "avg_salary"	// 对(avg_salary)平均薪资累加求和
+                }
+            }
+        }
+    }
+}
+
+// 返回
+{
+    // ......
+    "aggregations": {
+        "age": {
+            "buckets": [
+                {
+                    "key": 20,
+                    "doc_count": 1,
+                    "avg_salary": {
+                        "value": 9000
+                    },
+                    "cumulative_salary": {
+                        "value": 9000	// 平均薪资累计：9000
+                    }
+                },
+                {
+                    "key": 21,
+                    "doc_count": 1,
+                    "avg_salary": {
+                        "value": 16000
+                    },
+                    "cumulative_salary": {
+                        "value": 25000	// 平均薪资累计：9000+16000 = 25000
+                    }
+                },
+                {
+                    "key": 22,
+                    "doc_count": 0,
+                    "avg_salary": {
+                        "value": null
+                    },
+                    "cumulative_salary": {
+                        "value": 25000
+                    }
+                },
+                {
+                    "key": 23,
+                    "doc_count": 0,
+                    "avg_salary": {
+                        "value": null
+                    },
+                    "cumulative_salary": {
+                        "value": 25000
+                    }
+                },
+                {
+                    "key": 24,
+                    "doc_count": 0,
+                    "avg_salary": {
+                        "value": null
+                    },
+                    "cumulative_salary": {
+                        "value": 25000
+                    }
+                },
+                {
+                    "key": 25,
+                    "doc_count": 3,
+                    "avg_salary": {
+                        "value": 17333.3333
+                    },
+                    "cumulative_salary": {
+                        "value": 42333.3333	// 平均薪资累计：25000+17333.3333 = 42333.3333
+                    }
+                }
+            ]
+        }
+    }
+}
+```
+
+
+
+### 6.4、聚合的不精准性
+
+数据量、精确度、实时性
+
+![image-20250821233814532](READMD.assets\image-20250821233814532.png)
+
+- 1、设置主分片为1
+
+- 2、调大shard_size值
+
+  - 官方推荐：size*1.5+10
+
+    ```json
+    GET /my_flights/_search
+    {
+        "size": 0,
+        "aggs": {
+            "weather": {
+                "terms": {
+                    "field": "OriginWeather",
+                    "size": 3,
+                    "shard_size": 15, // 增加每个分片获取的数据，来提高精确度。官方推荐：size*1.5+10
+                    "show_term_doc_count_error": true
+                }
+            }
+        }
+    }
+    
+    // 返回
+    {
+        // ......
+        "aggregations":{
+            "weather": {
+                "doc_count_error_upper_bound": 1175,	// 被遗漏的term分桶，包含的文档，有可能的最大值
+                "sum_other_doc_count": 3510,			// 除了返回结果bucket的terms以外，其他terms的文档总数(总数-返回的总数)
+                "buckets": [
+                    // .......
+                ]
+            }
+        }
+    }
+    ```
+
+- 3、将size设置为全量值，来解决精度问题
+
+  - 将size设置为2的32次方减1也就是分片支持的最大值，来解决精度问题
+  - 原因：1.x版本，size等于0代表全部。高版本取消0值，所以设置了最大值（大于业务的全量值）
+
+- 4、使用Clickhouse/Spark进行精度聚合
+
+
+
+### 6.5、ES的聚合性能优化
+
+#### 6.5.1、插入数据时对索引进行预排序
+
+- Index sorting (索引排序)，可以在插入时对索引进行排序，而不是查询时再对索引进行排序，这将提高范围查询(range query)和排序操作的性能。
+- 在ES新建索引时，可以配置如何对每个分片内的段进行排序。
+- ES 6.x以后版本才有的特性。
+
+```json
+PUT /my_index
+{
+    "settings": {
+        "index": {
+            "sort.field": "create_time",
+            "sort.order": "desc"
+        }
+    },
+    "mappings":{
+        "properties": {
+            "create_time": {
+                "type": "date"
+            }
+        }
+    }
+}
+```
+
+注意：预排序将增加ES写入的成本。在某些特定场景下，开启索引预排序会导致大约40%~50%的写入性能下降。适合写少，读多的场景。
+
+
+
+#### 6.5.2、使用节点查询缓存
+
+节点查询缓存(Node query cache)可用于有效缓存过滤器（filter）操作的结果。如果多次执行同一个filter操作，这将很有效，但是即便更改过滤器中的某一个值，也将意味着需要计算新的过滤器结果。
+
+执行一个带有过滤查询的搜索请求，ES将自动尝试使用节点查询缓存来优化性能。
+
+例如：如果你想缓存一个基于特定字段值过滤的查询
+
+```json
+GET /your_index/_search
+{
+    "query": {
+        "bool": {
+            "filter": {
+                "term": {
+                    "your_field": "your_value"
+                }
+            }
+        }
+    }
+}
+```
+
+
+
+#### 6.5.3、使用分片请求缓存
+
+聚合语句中，设置：size: 0, 就会使用分片请求缓存缓存结果。size=0的含义是：只返回聚合结果，不返回查询结果。
+
+```json
+GET /es_db/_search
+{
+    "size": 0,
+    "aggs": {
+        "remark_agg": {
+            "trems": {
+                "field": "remark.keyword"
+            }
+        }
+    }
+}
+```
+
+ 
+
+#### 6.5.4、拆分聚合，使聚合并行化
+
+ES查询条件中同时有多个条件聚合，默认情况下聚合不是并行运行的。当为每个聚合提供自己的查询并执行mearch时，性能会有显著提升。因此，在CPU资源不是瓶颈的前提下，可以将多个聚合拆分为多个查询，借助：msearch实现并行聚合。
+
+```json
+GET /employees/_search
+{
+    "size": 0,
+    "aggs": {
+        "job_agg": {
+            "term": {
+                "field": "job.keyword"
+            }
+        },
+        "max_salary": {
+            "": {
+                "field": "salary"
+            }
+        }
+    }
+}
+
+# msearch拆分多个语句的聚合实现
+GET _msearch
+{"index": "employees"}
+{"size": 0, "aggs": {"job_agg": {"term": {"field": "job.keyword"}}}
+ {"index": "employees"}
+{"size": 0, "aggs": {"max_salary": {"max": {"field": "salary"}}}
+```
 
 
 

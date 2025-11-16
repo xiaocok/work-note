@@ -72,6 +72,114 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
 
 
 
+## 离线插件下载和安装
+
+假设你想离线下载 **Python** 官方插件（由 Microsoft 发布）。
+
+---
+
+### 1. 找到所需信息
+
+我们需要确定三个关键部分：
+
+*   **发布者 (Publisher)**: `ms-python`
+    *   在 VS Code 市场页面的 URL 中可以找到。例如，Python 插件的市场页是：`https://marketplace.visualstudio.com/items?itemName=ms-python.python`
+    *   `itemName` 后面的第一个部分 `ms-python` 就是发布者。
+
+*   **插件名 (Extension Name)**: `python`
+    *   同样在 `itemName` 后面，第二部分 `python` 就是插件名。
+
+*   **版本号 (Version Number)**: `2025.10.0`
+    *   这个需要在插件的市场页面上查找。通常在“版本历史”或“详细信息”区域可以看到当前最新版本。
+    *   我们以 `2025.10.0` 为例。
+
+---
+
+### 2. 拼接完整的下载链接
+
+将上面的信息填入模板：
+`https://marketplace.visualstudio.com/_apis/public/gallery/publishers/{发布者}/vsextensions/{插件名}/{版本号}/vspackage`
+
+替换后得到：
+`https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/vsextensions/python/2025.10.0/vspackage`
+
+---
+
+### 3. 下载和安装
+
+1.  **下载**: 将拼接好的完整链接复制到浏览器中打开。
+    *   浏览器会开始下载一个 `.vsix` 文件（文件名通常是 `ms-python.python-2025.10.0.vsix` 或类似的压缩包）。
+    *   如果链接返回 `404` 错误，请检查版本号是否正确，或者尝试不填写版本号，让服务器返回最新版本。
+
+2.  **安装**: 下载完成后，将 `.vsix` 文件拷贝到没有网络的电脑上。
+    *   打开目标电脑上的 VS Code。
+    *   进入扩展面板（快捷键 `Ctrl+Shift+X`）。
+    *   点击右上角的“...”菜单。
+    *   选择 **“从VSIX安装...”**。
+    *   浏览并选择你下载的 `.vsix` 文件，然后点击安装即可。
+
+---
+
+### 注意事项
+
+*   **版本号**: 版本号必须精确匹配。如果输入了不存在的版本号，链接会失效。
+*   **平台**: 大多数通用插件（如 Python、Prettier）不需要指定平台。但对于一些依赖本地二进制文件的插件（如某些 C++ 工具链），可能需要在链接末尾添加 `?targetPlatform=win32-x64` 或 `?targetPlatform=linux-x64` 等参数来获取对应操作系统的版本。
+*   **替代方案**: 如果手动拼接链接失败，更简单的方法是在有网络的电脑上直接通过 VS Code 的“下载扩展VSIX”功能获取文件。
+
+
+
+### 示例
+
+#### 插件下载
+
+下载规则：https://marketplace.visualstudio.com/_apis/public/gallery/publishers/{发布者}/vsextensions/{插件名}/{版本号}/vspackage
+
+
+
+例如：
+
+#### GoLang插件
+
+地址：https://marketplace.visualstudio.com/items?itemName=golang.Go
+
+golang是发布者
+
+go是插件名
+
+查看Version History：得到最近的几个版本号，选择一个版本号0.51.1
+
+https://marketplace.visualstudio.com/_apis/public/gallery/publishers/golang/vsextensions/go/0.51.1/vspackage
+
+
+
+#### Python插件
+
+地址：https://marketplace.visualstudio.com/items?itemName=ms-python.python
+
+ms-python是发布者
+
+python插件名
+
+https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/vsextensions/python/2025.19.2025111301/vspackage
+
+
+
+#### Python Debugger
+
+地址：https://marketplace.visualstudio.com/items?itemName=ms-python.debugpy
+
+下载地址：https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/vsextensions/debugpy/2025.16.0/vspackage
+
+
+
+#### GitLens
+
+地址：https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens
+
+下载地址：https://marketplace.visualstudio.com/_apis/public/gallery/publishers/eamodio/vsextensions/gitlens/2025.11.1304/vspackage
+
+
+
 ## GoLang调试
 
 [用vscode开发和调试golang超简单教程](https://blog.csdn.net/v6543210/article/details/84504460)
@@ -137,6 +245,7 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
             "type": "go",
             "request": "launch",
             "mode": "auto",
+            // 主程序目录，main文件，程序入口目录
             "program": "${workspaceRoot}",
             // 执行参数
             "args": ["-config", " server.json"],
@@ -144,6 +253,7 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
             "buildFlags": "-tags 'server'",
             // 环境变量
             "env": {},
+            // 工作目录
             "cwd": "${workspaceRoot}"
         }
     ]
