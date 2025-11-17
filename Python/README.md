@@ -490,52 +490,195 @@ def restore_from_session(
 
 ### @contextmanager
 
-基本概念
+Python 的 `@contextmanager` 是一个非常实用的装饰器，用于**将一个生成器函数（generator function）转换为上下文管理器（context manager）**，从而可以配合 `with` 语句使用。
 
-- 上下文管理器装饰器：来自 Python contextlib 模块，用于简化上下文管理器的创建
-- 替代方案：可以用生成器函数替代传统的类式上下文管理器（需要实现 enter 和 exit 方法）
-
-
-
-工作原理
-
-1. 生成器函数：被装饰的函数必须是生成器（包含 yield 语句）
-2. yield 分割：yield 之前的代码相当于 enter 方法，之后的代码相当于 exit 方法
-3. 异常处理：通过 try/finally 结构确保清理代码总是执行
+它定义在标准库模块 `contextlib` 中：
 
 ```python
+from contextlib import contextmanager
+```
+
+------
+
+🎯 核心思想
+
+通常，要实现一个上下文管理器，你需要定义一个类，并实现 `__enter__` 和 `__exit__` 方法。
+ 而 `@contextmanager` 提供了一种**更简洁、函数式的方式**来实现同样的功能——只需写一个**生成器函数**，并在 `yield` 前后分别写“进入”和“退出”的逻辑。
+
+------
+
+✅ 基本语法结构
+
+```python
+from contextlib import contextmanager
+
 @contextmanager
-def metadata_batch(self, state: State):
-    """Context manager to ensure batched metadata is always written to the `State`."""
+def my_context():
+    # 进入上下文前的准备（相当于 __enter__）
+    setup_code()
     try:
-        yield	# 这里暂停，执行 with 语句块中的代码
+        yield resource  # resource 会作为 with as 后的变量值
     finally:
-        self.write_metadata(state)	# 最终总会执行这个清理操作
+        # 退出上下文时的清理（相当于 __exit__）
+        cleanup_code()
 ```
 
-这样使用的好处：
+> ⚠️ **必须使用 `try...finally`**：确保即使发生异常，清理代码也能执行。
 
-- 确保资源清理：无论代码块是否抛出异常，都会执行 write_metadata
-- 简化语法：可以配合 with 语句使用，提供清晰的作用域管理
+------
 
-使用示例
+🔍 示例 1：模拟打开文件（简化版）
 
 ```python
-def condensed_history(self, state: State) -> View | Condensation:
-    """Condense the state's history."""
-    # ... 其他代码 ...
-    
-    with self.metadata_batch(state):
-        return self.condense(state.view)
+1from contextlib import contextmanager
+2
+3@contextmanager
+4def my_open(filename):
+5    print(f"打开文件: {filename}")
+6    f = open(filename, 'w')
+7    try:
+8        yield f  # 将文件对象交给 with 语句
+9    finally:
+10        print("关闭文件")
+11        f.close()
+12
+13# 使用
+14with my_open('test.txt') as f:
+15    f.write("Hello, @contextmanager!")
 ```
 
-执行过程如下：
+输出：
 
-1. 进入上下文：with self.metadata_batch(state): 调用 metadata_batch 方法
-2. 执行生成器前半部分：执行 try 块中的代码（这里是空的）
-3. 暂停并返回控制权：遇到 yield 时暂停，将控制权交给 with 语句块
-4. 执行业务逻辑：执行 self.condense(state.view)
-5. 退出上下文：无论 condense 方法是否成功，都会执行 finally 块
+```
+1打开文件: test.txt
+2关闭文件
+```
+
+这等价于手动实现的上下文管理器类，但代码更简洁。
+
+------
+
+🔍 示例 2：计时器上下文管理器
+
+```python
+1import time
+2from contextlib import contextmanager
+3
+4@contextmanager
+5def timer():
+6    start = time.time()
+7    try:
+8        yield
+9    finally:
+10        end = time.time()
+11        print(f"耗时: {end - start:.4f} 秒")
+12
+13# 使用
+14with timer():
+15    time.sleep(1)
+```
+
+输出：
+
+```
+1耗时: 1.0042 秒
+```
+
+注意：这里 `yield` 没有返回值，所以 `with timer() as x` 中 `x` 会是 `None`。
+
+------
+
+🔍 示例 3：带返回值的资源
+
+```python
+1@contextmanager
+2def database_connection():
+3    conn = connect_to_db()  # 假设这是连接数据库的函数
+4    try:
+5        yield conn
+6    finally:
+7        conn.close()
+```
+
+使用：
+
+```python
+1with database_connection() as db:
+2    db.execute("SELECT ...")
+```
+
+------
+
+❗ 注意事项
+
+1. **必须 `yield` 一次且仅一次**
+
+   - 多次 `yield` 会导致 `RuntimeError: generator didn't stop after throw()`。
+   - 不 `yield` 也会报错。
+
+2. **异常处理**
+
+   - 如果 `with` 块中抛出异常，异常会在 `yield` 处重新抛出。
+   - 若你想**捕获并处理异常**（比如记录日志但不中断），可以在 `except` 中处理，但要小心不要吞掉异常（除非有意为之）。
+
+   ```python
+   1@contextmanager
+   2def ignore_exception():
+   3    try:
+   4        yield
+   5    except Exception as e:
+   6        print(f"忽略异常: {e}")
+   7        # 不 re-raise，异常被吞掉
+   ```
+
+3. **不能替代所有上下文管理器**
+
+   - 对于复杂状态机或需要多次进入/退出的场景，还是建议用类实现 `__enter__`/`__exit__`。
+
+------
+
+💡 与类实现对比
+
+类方式：
+
+```python
+1class MyContext:
+2    def __enter__(self):
+3        print("进入")
+4        return "资源"
+5    def __exit__(self, exc_type, exc_val, exc_tb):
+6        print("退出")
+```
+
+`@contextmanager` 方式：
+
+```python
+1@contextmanager
+2def my_context():
+3    print("进入")
+4    try:
+5        yield "资源"
+6    finally:
+7        print("退出")
+```
+
+后者更轻量、易读，尤其适合简单场景。
+
+------
+
+✅ 总结
+
+| 特点         | 说明                                                         |
+| ------------ | ------------------------------------------------------------ |
+| **来源**     | `from contextlib import contextmanager`                      |
+| **本质**     | 把生成器函数转为上下文管理器                                 |
+| **结构**     | `setup → yield → cleanup`（用 `try/finally` 包裹）           |
+| **优点**     | 代码简洁、避免写类、逻辑集中                                 |
+| **适用场景** | 资源获取/释放、临时状态修改（如切换目录、修改环境变量）、计时、锁等 |
+
+------
+
+如果你经常写 `with` 语句相关的工具函数，`@contextmanager` 是提升代码优雅度的利器！
 
 
 
