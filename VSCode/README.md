@@ -116,7 +116,29 @@ https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/v
 
 
 
+### 安装插件
 
+#### 通义千问
+
+**安装插件**
+
+1. 点击左侧活动栏的 **扩展图标（Extensions）**（或按 `Cmd+Shift+X` / `Ctrl+Shift+X`）。
+
+2. 搜索 `通义灵码` 或 `Tongyi Lingma`
+
+   找到由 Alibaba Cloud 发布的插件，点击 Install
+
+   - 插件 ID 通常为：`aliyun.tongyi-lingma`
+
+**显示聊天对话框**
+
+1. Cmd + Shift + P / Ctrl + Shift + P
+
+2. Chat: Focus on Chat View
+
+   聊天：焦点在 聊天 视图上
+
+   右侧的聊天窗口会有LINGMA，点击中国区登录即可
 
 
 
@@ -362,28 +384,20 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
 **这样不方便查看项目目录, 要修改为树形结构:**
 
 1. 打开设置
+   
    ![在这里插入图片描述](README.assets/text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3d4MTAzNTU4OTExMw.png)
    
-   
-   
 2. 找到用户->功能->资源管理器:
+
    ![在这里插入图片描述](README.assets/166228688668215.png)
 
-   
-
 3. 将 `Compace Folders`取消勾线:
+
    ![在这里插入图片描述](README.assets/166228687225010.png)
 
 然后显示目录就是树形结构了:
+
 ![在这里插入图片描述](README.assets/20210301162923346.png)
-
-
-
-
-
-
-
-
 
 
 
@@ -458,7 +472,6 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
 
 ![img](README.assets/524393285.png)
 
- 
 
 ## 保存自动格式化
 
@@ -467,12 +480,12 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
 [Vscode实现保存后自动格式化代码](https://blog.csdn.net/weixin_51735258/article/details/124071593)
 
 
-
 ### 方法一
 
 1. 打开vscode，点击`设置`
 
 ![在这里插入图片描述](README.assets/d65e8d64953d417b8e494a7f46a1de2c.png)
+
 
 2. `搜索框`输入`格式化`，如图勾选这三个选项
 
@@ -513,12 +526,6 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
 ```
 
 ![在这里插入图片描述](README.assets/211a70502d7f4015a4a8a42f4789c4fb.png)
-
-
-
-
-
-
 
 ## 快捷键
 
