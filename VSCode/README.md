@@ -140,6 +140,14 @@ https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/v
 
    右侧的聊天窗口会有LINGMA，点击中国区登录即可
 
+3. 顶部搜索框右侧有一个聊天按钮，点击一下，即可开关聊天窗口。或者使用快捷键Cmd + Ctrl + I。
+
+   ![image-20251124182412492](README.assets/image-20251124182412492.png)
+
+   登录：阿里云中国站账号登录，打开网页扫描登录。
+
+   ![image-20251124203501483](README.assets/image-20251124203501483.png)
+
 
 
 ## GoLang环境
@@ -542,6 +550,16 @@ https://marketplace.visualstudio.com/items?itemName=lukehoban.Go
 |                  |                   |                          |
 |                  |                   |                          |
 |                  |                   |                          |
+
+
+
+**MacOS快捷键**
+
+| 键位             | 命令 | 说明                  |
+| ---------------- | ---- | --------------------- |
+| Ctrl + -         |      | 跳转上一位置          |
+| Ctrl + Shift + - |      | 跳转下一位置          |
+| Cmd + 鼠标左键   |      | 跳转定义处/跳转调用处 |
 
 
 
