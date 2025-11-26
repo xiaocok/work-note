@@ -144,6 +144,25 @@ https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/v
 
    <img src="README.assets/image-20251124182412492.png" width="900"/>
 
+   **使用 Copilot Chat（GitHub Copilot Chat）**
+
+   如果你安装了 **GitHub Copilot** 并启用了 Copilot Chat 功能，可以通过以下方式打开聊天窗口：
+
+   - 快捷键：
+
+     - Windows/Linux: `Ctrl + Shift + P` → 输入 `Copilot: Open Chat`
+     - macOS: `Cmd + Shift + P` → 输入 `Copilot: Open Chat`
+
+   - 或者点击侧边栏中的 **Copilot 图标**（机器人头像），即可打开聊天面板。
+
+   - 打开 通义灵码
+
+     > Lingma:Open/Close Lingma AI Chat
+
+     ![image-20251126212749164](README.assets/image-20251126212749164.png)
+
+     > 注意：需要拥有 GitHub Copilot 订阅并启用 Copilot Chat（目前部分用户可能还在预览阶段）。
+
    登录：阿里云中国站账号登录，打开网页扫描登录。
 
    <img src="README.assets/image-20251124203501483.png" height="650"/>
