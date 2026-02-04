@@ -108,6 +108,12 @@ https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/v
 
 
 
+**Pylance**
+
+Python代码补全，跳转只定义和调用处
+
+
+
 ##### GitLens
 
 地址：https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens
@@ -140,7 +146,7 @@ https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/v
 
    右侧的聊天窗口会有LINGMA，点击中国区登录即可
 
-3. 顶部搜索框右侧有一个聊天按钮，点击一下，即可开关聊天窗口。或者使用快捷键Cmd + Ctrl + I。
+3. 顶部搜索框右侧有一个聊天按钮，点击一下，即可开关聊天窗口。或者使用快捷键`Cmd + Ctrl + I` / `Cmd + Shift + L`。
 
    <img src="README.assets/image-20251124182412492.png" width="900"/>
 
@@ -162,9 +168,13 @@ https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-python/v
      ![image-20251126212749164](README.assets/image-20251126212749164.png)
 
      > 注意：需要拥有 GitHub Copilot 订阅并启用 Copilot Chat（目前部分用户可能还在预览阶段）。
-
+     
+     点击 ... ->视图 -> 通义灵码
+     
+     ![image-20251127094404380](/Users/mac/www/work-note/VSCode/README.assets/image-20251127094404380.png)
+   
    登录：阿里云中国站账号登录，打开网页扫描登录。
-
+   
    <img src="README.assets/image-20251124203501483.png" height="650"/>
 
 
