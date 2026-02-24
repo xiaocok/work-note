@@ -128,3 +128,16 @@ plugin.json
 }
 ```
 
+mcp.json
+
+```json
+{
+  "mcpServers": {
+    "xxxx": {  // mcp服务的名称标识
+      "type": "http",
+      "url": "http://www.xxxx.com/mcp" // mcp服务的域名，mcp服务的地址
+    }
+  }
+}
+```
+
