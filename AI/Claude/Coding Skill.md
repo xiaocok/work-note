@@ -6,11 +6,25 @@
 
 插件
 
-65k 
+71k 
 
 claude官方也贡献代码
 
 https://github.com/obra/superpowers
+
+
+
+### everything-claude-code
+
+插件
+
+61k
+
+claude官方也贡献代码
+
+https://github.com/affaan-m/everything-claude-code
+
+
 
 
 
