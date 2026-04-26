@@ -85,3 +85,12 @@ cat 18f4de01-7c0d-4216-a29e-18112ce18c8f.txt
 
 
 
+
+
+### 会话日志
+
+~/.claude/projects/<slug>/<session_id>.jsonl
+
+> ~/.claude/projects/home-ubuntu-python-code/4abe0327-d3f4-4187-8451-03b262825825.jsonl
+
+- <slug>:  项目标识，文件夹路径，使用中横线替代路径中的\。~/.claude/projects/home-ubuntu-python-code/
