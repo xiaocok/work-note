@@ -7,12 +7,14 @@
 1. [概述](#1-概述)
 2. [通用输入字段](#2-通用输入字段)
 3. [通用输出字段](#3-通用输出字段)
-4. [各 Hook 类型详细说明](#4-各-hook-类型详细说明)
-5. [异步 Hook 详解](#5-异步-hook-详解)
-6. [执行机制与并发处理](#6-执行机制与并发处理)
-7. [脚本读取输入示例](#7-脚本读取输入示例)
-8. [注意事项](#8-注意事项)
-9. [完整 Hook 事件类型列表](#9-完整-hook-事件类型列表)
+4. [Matcher 支持情况](#4-matcher-支持情况)
+5. [各 Hook 类型详细说明](#5-各-hook-类型详细说明)
+6. [Hook 上下文加载机制](#6-hook-上下文加载机制)
+7. [异步 Hook 详解](#7-异步-hook-详解)
+8. [执行机制与并发处理](#8-执行机制与并发处理)
+9. [脚本读取输入示例](#9-脚本读取输入示例)
+10. [注意事项](#10-注意事项)
+11. [完整 Hook 事件类型列表](#11-完整-hook-事件类型列表)
 
 ---
 
@@ -57,9 +59,108 @@
 
 ---
 
-## 4. 各 Hook 类型详细说明
+## 4. Matcher 支持情况
 
-### 4.1 Stop Hook
+### 4.1 概述
+
+**不是所有 Hook 都支持 matcher 过滤。** matcher 字段用于过滤 hook 何时触发，但某些事件类型不支持此功能。
+
+### 4.2 不支持 matcher 的 Hook 事件
+
+以下 Hook 事件**不支持 matcher**，总是在每次出现时触发。如果添加 `matcher` 字段，它会被**静默忽略**：
+
+| 事件类型 | 说明 |
+|---------|------|
+| `Stop` | 每次 Claude 完成响应时触发 |
+| `UserPromptSubmit` | 每次用户提交提示时触发 |
+| `PostToolBatch` | 每批工具调用完成后触发 |
+| `TeammateIdle` | 每次 teammate 空闲时触发 |
+| `TaskCreated` | 每次任务创建时触发 |
+| `TaskCompleted` | 每次任务完成时触发 |
+| `WorktreeCreate` | 每次 worktree 创建时触发 |
+| `WorktreeRemove` | 每次 worktree 移除时触发 |
+| `CwdChanged` | 每次工作目录改变时触发 |
+
+### 4.3 支持 matcher 的 Hook 事件及匹配内容
+
+| 事件类型 | matcher 匹配的内容 | 示例 matcher 值 |
+|---------|-------------------|----------------|
+| `PreToolUse` | 工具名称 | `Bash`, `Edit\|Write`, `mcp__.*` |
+| `PostToolUse` | 工具名称 | 同上 |
+| `PostToolUseFailure` | 工具名称 | 同上 |
+| `PermissionRequest` | 工具名称 | 同上 |
+| `PermissionDenied` | 工具名称 | 同上 |
+| `SessionStart` | 会话如何启动 | `startup`, `resume`, `clear`, `compact` |
+| `SessionEnd` | 会话为何结束 | `clear`, `resume`, `logout`, `prompt_input_exit` |
+| `Setup` | 哪个 CLI 标志触发 | `init`, `maintenance` |
+| `Notification` | 通知类型 | `permission_prompt`, `idle_prompt`, `auth_success`, `elicitation_dialog` |
+| `SubagentStart` | 代理类型 | `general-purpose`, `Explore`, `Plan` 或自定义代理名称 |
+| `SubagentStop` | 代理类型 | 同上 |
+| `PreCompact` | 触发压缩的原因 | `manual`, `auto` |
+| `PostCompact` | 触发压缩的原因 | 同上 |
+| `ConfigChange` | 配置源 | `user_settings`, `project_settings`, `local_settings`, `policy_settings`, `skills` |
+| `FileChanged` | 文字文件名（非正则） | `.envrc\|.env` |
+| `StopFailure` | 错误类型 | `rate_limit`, `authentication_failed`, `oauth_org_not_allowed`, `billing_error`, `invalid_request`, `server_error`, `max_output_tokens`, `unknown` |
+| `InstructionsLoaded` | 加载原因 | `session_start`, `nested_traversal`, `path_glob_match`, `include`, `compact` |
+| `UserPromptExpansion` | 命令名称 | skill 或命令名称 |
+| `Elicitation` | MCP 服务器名称 | 配置的 MCP 服务器名称 |
+| `ElicitationResult` | MCP 服务器名称 | 同上 |
+
+### 4.4 matcher 语法说明
+
+matcher 字段是一个**正则表达式字符串**，评估方式取决于内容：
+
+| matcher 值 | 评估方式 | 示例 |
+|-----------|---------|------|
+| `"*"`, `""` 或省略 | 匹配所有 | 在事件的每次出现时触发 |
+| 仅字母、数字、`_` 和 `\|` | 精确字符串或 `\|` 分隔的列表 | `Bash` 仅匹配 Bash；`Edit\|Write` 匹配任一 |
+| 包含其他字符 | JavaScript 正则表达式 | `^Notebook` 匹配以 Notebook 开头的工具 |
+
+**注意**：`*` 和 `.*` 的区别：
+- `*` 匹配**前面的字符** 0 次或多次（如 `Bash*` 匹配 `Bas`, `Bash`, `Bashh`）
+- `.*` 匹配**任意字符** 0 次或多次（如 `Bash.*` 匹配 `Bash`, `BashCommand`）
+
+### 4.5 MCP 工具匹配
+
+MCP 工具遵循命名模式 `mcp__<server>__<tool>`：
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__memory__.*",
+        "hooks": [{ "type": "command", "command": "./log-memory.sh" }]
+      }
+    ]
+  }
+}
+```
+
+- `mcp__memory__.*` 匹配来自 `memory` 服务器的所有工具
+- `mcp__.*__write.*` 匹配来自任何服务器的名称以 `write` 开头的工具
+
+### 4.6 使用示例
+
+#### 支持 matcher 的 hook
+```python
+# PreToolUse - 可以针对特定工具
+HookMatcher(matcher="Bash", hooks=[my_callback])  # 只匹配 Bash 工具
+HookMatcher(matcher="Edit|Write", hooks=[my_callback])  # 匹配 Edit 或 Write
+```
+
+#### 不支持 matcher 的 hook
+```python
+# Stop - matcher 会被静默忽略
+HookMatcher(matcher=".*", hooks=[my_callback])  # matcher 无意义
+HookMatcher(hooks=[my_callback])  # 推荐写法：不写 matcher
+```
+
+---
+
+## 5. 各 Hook 类型详细说明
+
+### 5.1 Stop Hook
 
 **触发时机**：Claude 即将结束响应时
 
@@ -82,6 +183,24 @@
 | `reason` | string | 否 | 决策原因 | 解释决策依据 | `"reason": "需要用户确认"` |
 | `stopReason` | string | 否 | 停止原因 | 当 `continue: false` 时的停止说明 | `"stopReason": "任务已完成"` |
 
+#### 输出字段发送给大模型的情况
+
+根据 Claude Code 源码分析，Stop Hook 返回的字段中，**以下字段会发送给大模型**：
+
+| 字段 | 是否发送给大模型 | 说明 |
+|------|----------------|------|
+| `continue: false` + `stopReason` | ✅ **是** | 通过 `hook_stopped_continuation` attachment 发送给模型，包装为 `<system-reminder>` 消息 |
+| `decision: "block"` + `reason` | ✅ **是** | 通过 `hook_blocking_error` attachment 发送给模型，包装为 `<system-reminder>` 消息 |
+| `systemMessage` | ❌ **否** | 被包装为 `hook_system_message` attachment，但在 `normalizeAttachmentForAPI` 中被过滤掉，不会发送给模型 |
+| `suppressOutput` | ❌ **否** | 仅控制 stdout 是否在 transcript 中显示，不会发送给模型 |
+| `continue: true` | ❌ **否** | 仅控制流程走向，不会发送给模型 |
+| `additionalContext` | ❌ **否** | Stop Hook 不支持返回此字段（schema 中未定义） |
+
+**重要说明**：
+- 当 `continue: false` 时，必须提供 `stopReason`，该消息会作为系统提醒发送给大模型
+- 当 `decision: "block"` 时，建议提供 `reason`，该消息会作为阻塞错误发送给大模型
+- `systemMessage` 虽然文档中列出，但实际上**不会发送给大模型**，仅作为内部处理使用
+
 #### 退出码含义
 - `0`：stdout/stderr 不显示
 - `2`：显示 stderr 给模型并继续对话
@@ -89,7 +208,7 @@
 
 ---
 
-### 4.2 PreToolUse Hook
+### 5.2 PreToolUse Hook
 
 **触发时机**：工具执行前
 
@@ -121,7 +240,7 @@
 
 ---
 
-### 4.3 PostToolUse Hook
+### 5.3 PostToolUse Hook
 
 **触发时机**：工具执行成功后
 
@@ -151,7 +270,7 @@
 
 ---
 
-### 4.4 PostToolUseFailure Hook
+### 5.4 PostToolUseFailure Hook
 
 **触发时机**：工具执行失败后
 
@@ -177,7 +296,7 @@
 
 ---
 
-### 4.5 PermissionRequest Hook
+### 5.5 PermissionRequest Hook
 
 **触发时机**：显示权限对话框时
 
@@ -203,7 +322,7 @@
 
 ---
 
-### 4.6 PermissionDenied Hook
+### 5.6 PermissionDenied Hook
 
 **触发时机**：自动模式拒绝工具调用时
 
@@ -226,7 +345,7 @@
 
 ---
 
-### 4.7 UserPromptSubmit Hook
+### 5.7 UserPromptSubmit Hook
 
 **触发时机**：用户提交提示词时
 
@@ -253,7 +372,7 @@
 
 ---
 
-### 4.8 SessionStart Hook
+### 5.8 SessionStart Hook
 
 **触发时机**：新会话启动时
 
@@ -279,7 +398,7 @@
 
 ---
 
-### 4.9 SessionEnd Hook
+### 5.9 SessionEnd Hook
 
 **触发时机**：会话结束时
 
@@ -299,7 +418,7 @@
 
 ---
 
-### 4.10 Setup Hook
+### 5.10 Setup Hook
 
 **触发时机**：仓库初始化或维护时
 
@@ -320,7 +439,7 @@
 
 ---
 
-### 4.11 SubagentStart Hook
+### 5.11 SubagentStart Hook
 
 **触发时机**：子代理启动时
 
@@ -335,14 +454,14 @@
 #### 输出字段
 
 | 字段 | 类型 | 必填 | 意义 | 用途 | 使用示例 |
-|------|------|------|------|---------|
+|------|------|------|------|------|---------|
 | `continue` | boolean | 否 | 是否继续 | 控制子代理启动 | |
 | `hookSpecificOutput.hookEventName` | string | 是 | 事件名称 | `"hookEventName": "SubagentStart"` |
 | `hookSpecificOutput.additionalContext` | string | 否 | 附加上下文 | 提供子代理信息 | `"additionalContext": "子代理已启动"` |
 
 ---
 
-### 4.12 SubagentStop Hook
+### 5.12 SubagentStop Hook
 
 **触发时机**：子代理结束响应时
 
@@ -366,7 +485,7 @@
 
 ---
 
-### 4.13 PreCompact Hook
+### 5.13 PreCompact Hook
 
 **触发时机**：对话压缩前
 
@@ -392,7 +511,7 @@
 
 ---
 
-### 4.14 PostCompact Hook
+### 5.14 PostCompact Hook
 
 **触发时机**：对话压缩后
 
@@ -413,7 +532,7 @@
 
 ---
 
-### 4.15 Notification Hook
+### 5.15 Notification Hook
 
 **触发时机**：发送通知时
 
@@ -435,7 +554,7 @@
 
 ---
 
-### 4.16 Elicitation Hook
+### 5.16 Elicitation Hook
 
 **触发时机**：MCP 服务器请求用户输入时
 
@@ -461,7 +580,7 @@
 
 ---
 
-### 4.17 ElicitationResult Hook
+### 5.17 ElicitationResult Hook
 
 **触发时机**：用户响应后
 
@@ -486,7 +605,7 @@
 
 ---
 
-### 4.18 ConfigChange Hook
+### 5.18 ConfigChange Hook
 
 **触发时机**：配置文件变化时
 
@@ -507,7 +626,7 @@
 
 ---
 
-### 4.19 FileChanged Hook
+### 5.19 FileChanged Hook
 
 **触发时机**：文件发生变化时
 
@@ -528,7 +647,7 @@
 
 ---
 
-### 4.20 CwdChanged Hook
+### 5.20 CwdChanged Hook
 
 **触发时机**：工作目录变化时
 
@@ -549,7 +668,7 @@
 
 ---
 
-### 4.21 WorktreeCreate Hook
+### 5.21 WorktreeCreate Hook
 
 **触发时机**：创建隔离工作树时
 
@@ -570,7 +689,7 @@
 
 ---
 
-### 4.22 WorktreeRemove Hook
+### 5.22 WorktreeRemove Hook
 
 **触发时机**：删除工作树时
 
@@ -589,7 +708,7 @@
 
 ---
 
-### 4.23 TeammateIdle Hook
+### 5.23 TeammateIdle Hook
 
 **触发时机**：队友即将进入空闲状态时
 
@@ -610,7 +729,7 @@
 
 ---
 
-### 4.24 TaskCreated Hook
+### 5.24 TaskCreated Hook
 
 **触发时机**：任务创建时
 
@@ -634,7 +753,7 @@
 
 ---
 
-### 4.25 TaskCompleted Hook
+### 5.25 TaskCompleted Hook
 
 **触发时机**：任务标记为完成时
 
@@ -658,7 +777,7 @@
 
 ---
 
-### 4.26 StopFailure Hook
+### 5.26 StopFailure Hook
 
 **触发时机**：API 错误导致会话结束时
 
@@ -679,7 +798,7 @@
 
 ---
 
-### 4.27 InstructionsLoaded Hook
+### 5.27 InstructionsLoaded Hook
 
 **触发时机**：加载指令文件时
 
@@ -703,9 +822,123 @@
 
 ---
 
-## 5. 异步 Hook 详解
+## 6. Hook 上下文加载机制
 
-### 5.1 同步 vs 异步对比
+### 6.1 Hook 返回的信息会加载到上下文中吗？
+
+**是的，但处理方式取决于字段类型和 hook 执行模式。**
+
+Hook 返回的 `additionalContext` 和 `systemMessage` 在 `processHookJSONOutput` 函数中被提取：
+
+```typescript
+// 来自 hooks.ts:621-628
+case 'PostToolUse':
+  result.additionalContext = json.hookSpecificOutput.additionalContext
+  break
+case 'UserPromptSubmit':
+  result.additionalContext = json.hookSpecificOutput.additionalContext
+  break
+// ... 其他 hook 类型类似
+```
+
+这些返回值随后在 `processUserInput` 中被处理：
+
+```typescript
+// 来自 processUserInput.ts:227-239
+if (hookResult.additionalContexts && hookResult.additionalContexts.length > 0) {
+  result.messages.push(
+    createAttachmentMessage({
+      type: 'hook_additional_context',
+      content: hookResult.additionalContexts.map(applyTruncation),
+      // ...
+    }),
+  )
+}
+```
+
+### 6.2 后续发送信息给大模型会将这些信息持续的发送给大模型吗？
+
+**是的，hook 返回的信息会被构建成消息对象，并在后续 API 请求中发送给模型。**
+
+#### 处理流程
+
+```
+Hook 执行 → 提取 additionalContext/systemMessage
+    ↓
+构建 attachment message (hook_additional_context / hook_system_message)
+    ↓
+在 processUserInput 中添加到 messages 数组
+    ↓
+mergeUserMessagesAndToolResults 合并到用户消息
+    ↓
+normalizeAttachmentForAPI 转换格式
+    ↓
+发送给大模型
+```
+
+#### systemMessage 的特殊处理
+
+**同步 hook 的 `systemMessage`**：
+- 被包装成 `hook_system_message` 类型的 attachment message
+- 在 `normalizeAttachmentForAPI` 函数中被**过滤掉**，**不会发送给模型**
+
+**异步 hook 的 `systemMessage`**：
+- 通过 `enqueuePendingNotification` 作为 `task-notification` 加入队列
+- 会被包装成带有 `<system-reminder>` 标签的用户消息
+- **会发送给模型**
+
+### 6.3 不同的 hook 或返回不同的字段，会影响效果吗？
+
+**是的，效果完全不同。**
+
+#### 各字段的影响
+
+| 字段 | 作用 | 是否发送给模型 |
+|------|------|---------------|
+| `additionalContext` | 作为 `hook_additional_context` attachment message，包装成 `<system-reminder>` 标签的用户消息 | ✅ 是 |
+| `systemMessage` (同步) | 作为 `hook_system_message` attachment message | ❌ **被过滤掉** |
+| `systemMessage` (异步) | 作为 `task-notification` 发送 | ✅ 是 |
+| `updatedInput` | 修改工具调用的输入参数 | ❌ 不发模型，影响执行 |
+| `updatedMCPToolOutput` | 修改 MCP 工具的输出 | ❌ 不发模型，影响执行 |
+| `decision` (PermissionRequest) | 控制权限决策 | ❌ 不发模型，影响执行 |
+| `preventContinuation` | 阻止操作继续执行 | ❌ 不发模型，中断流程 |
+
+#### 不同 hook 类型的 additionalContext 处理
+
+所有支持 `additionalContext` 的 hook 类型：
+
+- `PreToolUse` / `PostToolUse` / `PostToolUseFailure`
+- `UserPromptSubmit`
+- `SessionStart` / `Setup`
+- `SubagentStart`
+- `PermissionRequest` / `PermissionDenied`
+
+它们的 `additionalContext` 都会被收集并发送给模型。
+
+#### 异步 Hook 的特殊行为
+
+```typescript
+// 异步 hook 完成时检查响应
+const lines = stdout.split('\n')
+for (const line of lines) {
+  if (line.trim().startsWith('{')) {
+    const parsed = jsonParse(line.trim())
+    if (!('async' in parsed)) {
+      // 这是最终响应
+      response = parsed
+      break
+    }
+  }
+}
+```
+
+异步 hook 的结果会在**下一轮对话**时生效（用户发送新消息或模型准备下一轮生成）。
+
+---
+
+## 7. 异步 Hook 详解
+
+### 7.1 同步 vs 异步对比
 
 | 维度 | 同步 Hook（默认） | 异步 Hook（`async: true`） |
 |------|-----------------|--------------------------|
@@ -715,7 +948,7 @@
 | 支持类型 | command/prompt/agent/http | ✅ 仅 command |
 | 适用场景 | 权限、阻断、实时修改 | 日志、通知、后台任务 |
 
-### 5.2 异步配置方式
+### 7.2 异步配置方式
 
 **方式一：配置文件中设置**
 ```json
@@ -746,14 +979,14 @@ sleep 10
 echo '{"systemMessage": "审计日志已记录"}'
 ```
 
-### 5.3 systemMessage 注入机制
+### 7.3 systemMessage 注入机制
 
 **Hook 返回的 `systemMessage` 并不是作为系统提示词注入的，而是作为带有 `<system-reminder>` 标签的用户消息注入到对话中的。**
 
 - **同步 hook**：`systemMessage` 被包装成 `hook_system_message` 类型的 attachment message，在 `normalizeAttachmentForAPI` 函数中被过滤掉，**不会发送给模型**。
 - **异步 hook**：`systemMessage` 通过 `enqueuePendingNotification` 作为 `task-notification` 被加入消息队列，被包装成带有 `<system-reminder>` 标签的用户消息，**作为用户输入的一部分发送给模型**。
 
-### 5.4 异步模式启动
+### 7.4 异步模式启动
 
 脚本需要先输出异步标识：
 ```json
@@ -763,7 +996,7 @@ echo '{"systemMessage": "审计日志已记录"}'
 }
 ```
 
-### 5.5 异步执行完成
+### 7.5 异步执行完成
 
 后台执行完成后输出最终结果：
 ```json
@@ -775,9 +1008,9 @@ echo '{"systemMessage": "审计日志已记录"}'
 
 ---
 
-## 6. 执行机制与并发处理
+## 8. 执行机制与并发处理
 
-### 6.1 注册来源
+### 8.1 注册来源
 
 Hook 从四个来源汇聚，在 `getHooksConfig()` 中合并为一个数组：
 
@@ -788,7 +1021,7 @@ Hook 从四个来源汇聚，在 `getHooksConfig()` 中合并为一个数组：
 | **会话 hook** | `appState.sessionHooks` (Map) | Agent/Skill 生命周期 |
 | **函数 hook** | `appState.sessionHooks` (FunctionHook) | 会话级别 |
 
-### 6.2 执行模型
+### 8.2 执行模型
 
 **REPL 上下文**（`executeHooks()`）：
 - 所有匹配的 hook 转为 async generator 数组
@@ -799,14 +1032,14 @@ Hook 从四个来源汇聚，在 `getHooksConfig()` 中合并为一个数组：
 **REPL 外上下文**（`executeHooksOutsideREPL()`）：
 - 同样是并行执行，使用 `Promise.all`
 
-### 6.3 独立超时控制
+### 8.3 独立超时控制
 
 每个 hook 有独立的超时：
 - 可通过配置设置 `timeout`（秒）
 - 默认超时：`TOOL_HOOK_EXECUTION_TIMEOUT_MS`（15秒）
 - 一个 hook 超时完全不影响其他 hook
 
-### 6.4 结果聚合与干扰分析
+### 8.4 结果聚合与干扰分析
 
 #### 不会相互干扰的方面
 
@@ -830,7 +1063,7 @@ Hook 从四个来源汇聚，在 `getHooksConfig()` 中合并为一个数组：
 | **`watchPaths`** | 全部合并 | 低 |
 | **`initialUserMessage`** | 取最后一个设置的 | 低 |
 
-### 6.5 permissionBehavior 优先级规则
+### 8.5 permissionBehavior 优先级规则
 
 ```typescript
 case 'deny':  // deny 总是优先
@@ -843,9 +1076,9 @@ case 'allow': // 仅当未设置其他
 
 ---
 
-## 7. 脚本读取输入示例
+## 9. 脚本读取输入示例
 
-### 7.1 Python
+### 9.1 Python
 ```python
 #!/usr/bin/env python3
 import sys
@@ -866,7 +1099,7 @@ print(f"Hook Event: {hook_event}")
 print(json.dumps({"continue": True}))
 ```
 
-### 7.2 Bash
+### 9.2 Bash
 ```bash
 #!/bin/bash
 # 从 stdin 读取 JSON 输入
@@ -883,7 +1116,7 @@ echo "Hook Event: $HOOK_EVENT"
 echo '{"continue": true}'
 ```
 
-### 7.3 Node.js
+### 9.3 Node.js
 ```javascript
 #!/usr/bin/env node
 const readline = require('readline');
@@ -911,35 +1144,39 @@ rl.on('close', () => {
 
 ---
 
-## 8. 注意事项
+## 10. 注意事项
 
-### 8.1 stdin 读取时机
+### 10.1 stdin 读取时机
 - 对于**同步 Hook**：脚本需要在执行期间读取 stdin，读取完成后立即输出结果
 - 对于**异步 Hook**：系统会先写入 `jsonInput + '\n'`，然后结束 stdin，脚本需要在后台执行完成前读取输入
 
-### 8.2 JSON 格式
+### 10.2 JSON 格式
 - 输入始终是有效的 JSON，无需处理解析错误
 - 输出必须是有效的 JSON，否则会导致解析错误
 
-### 8.3 字符编码
+### 10.3 字符编码
 - 使用 UTF-8 编码
 - 特殊字符需要正确转义
 
-### 8.4 字段存在性
+### 10.4 字段存在性
 - 某些可选字段可能不存在，使用时需要进行存在性检查
 - 建议使用 `input.get('field_name')` 或条件判断来访问可选字段
 
-### 8.5 换行符
+### 10.5 换行符
 - 输入末尾会有一个换行符，脚本读取时需要注意处理
 - 使用 `cat`、`json.load(sys.stdin)` 等方式会自动处理换行符
 
-### 8.6 退出码优先级
+### 10.6 退出码优先级
 - 退出码会覆盖 JSON 中的 `continue` 字段
 - 退出码 `2` 会触发特殊处理逻辑
 
+### 10.7 systemMessage 的特殊行为
+- **同步 Hook**：`systemMessage` 不会发送给大模型，仅作为内部处理
+- **异步 Hook**：`systemMessage` 会通过 `task-notification` 发送给大模型
+
 ---
 
-## 9. 完整 Hook 事件类型列表
+## 11. 完整 Hook 事件类型列表
 
 | 序号 | 事件类型 | 触发时机 |
 |------|---------|---------|
@@ -973,15 +1210,52 @@ rl.on('close', () => {
 
 ---
 
-## 10. 退出码汇总
+## 附录 A：支持 additionalContext 的 Hook 类型
 
-| 退出码 | 通用含义 |
-|--------|---------|
-| `0` | 成功，按默认方式处理 |
-| `2` | 特殊处理，显示 stderr 给模型 |
-| 其他 | 仅显示 stderr 给用户 |
+以下 Hook 类型支持返回 `additionalContext` 字段，该字段会作为 `hook_additional_context` attachment 发送给大模型：
+
+| Hook 类型 | 支持 additionalContext |
+|---------|----------------------|
+| `PreToolUse` | ✅ |
+| `PostToolUse` | ✅ |
+| `PostToolUseFailure` | ✅ |
+| `UserPromptSubmit` | ✅ |
+| `SessionStart` | ✅ |
+| `Setup` | ✅ |
+| `SubagentStart` | ✅ |
+| `Notification` | ✅ |
+
+以下 Hook 类型**不支持**返回 `additionalContext`：
+
+| Hook 类型 | 原因 |
+|---------|------|
+| `Stop` | schema 中未定义 |
+| `SubagentStop` | schema 中未定义 |
+| `SessionEnd` | schema 中未定义 |
+| `PreCompact` | schema 中未定义 |
+| `PostCompact` | schema 中未定义 |
+| `PermissionRequest` | 使用 decision 字段控制 |
+| `PermissionDenied` | 使用 retry 字段控制 |
+| `StopFailure` | fire-and-forget，不处理输出 |
 
 ---
 
-**文档版本**: 1.0  
-**生成日期**: 2026-04-29
+## 附录 B：systemMessage 的处理差异
+
+| Hook 执行模式 | systemMessage 处理方式 |
+|-------------|---------------------|
+| 同步 Hook | `hook_system_message` → 被 `normalizeAttachmentForAPI` 过滤 → **不发送** |
+| 异步 Hook | `enqueuePendingNotification` → `task-notification` → **发送给模型** |
+
+---
+
+**文档版本**: 1.3  
+**更新日期**: 2026-05-11  
+**更新内容**:
+- 新增第4章 "Matcher 支持情况"，详细说明哪些 Hook 支持/不支持 matcher
+- 补充各事件的 matcher 匹配内容对照表
+- 说明 `*` 与 `.*` 在正则表达式中的区别
+- 补充 Stop Hook 输出字段发送给大模型的详细说明
+- 新增第6章 "Hook 上下文加载机制"，解答关于上下文加载和字段效果的常见问题
+- 新增附录说明支持 additionalContext 的 Hook 类型
+- 新增附录说明 systemMessage 的处理差异
