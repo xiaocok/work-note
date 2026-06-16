@@ -450,7 +450,7 @@ const options = {
 
 ### SDK 加载官方 LSP 插件
 
-使用官方已支持的 LSP 插件时，通常不需要自己写 `.lsp.json`。需要做的是：
+使用官方已支持的 LSP 插件时，通常不需要自己写 **`marketplace.json`** 或者 **`.lsp.json`** 。需要做的是：
 
 1. 安装对应 language server binary，并确保命令在 `PATH` 中。
 2. 安装官方 LSP 插件，例如 `/plugin install gopls-lsp@claude-plugins-official`。
@@ -493,6 +493,8 @@ for await (const message of query({
   console.log(message)
 }
 ```
+
+### 
 
 ### SDK 显式加载本地 LSP 插件
 
@@ -546,6 +548,306 @@ gopls serve
 ```
 
 正确做法是让插件声明启动方式，Claude Code runtime 根据插件配置启动对应进程。官方插件已经提供这类配置；自定义插件需要自己提供。
+
+
+
+### 自定义LSP插件
+
+官方的插件也是有编写相关LSP的启动信息，只是通过官方的插件市场安装的时候，自动写入了。
+
+claude内部没有维护怎么启动lsp服务的相关代码，都是通过设置来确定的。
+
+> ~/.claude/plugins/marketplaces/claude-plugins-official/.claude-plugin/marketplace.json
+
+```json
+{
+	"$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+	"name": "claude-plugins-official",
+	"description": "Directory of popular Claude Code extensions including development tools, productivity plugins, and MCP integrations",
+	"owner": {
+		"name": "Anthropic",
+		"email": "support@anthropic.com"
+	},
+	"plugins": [
+		{
+			"name": "gopls-lsp",
+			"description": "Go language server for code intelligence and refactoring",
+			"version": "1.0.0",
+			"author": {
+				"name": "Anthropic",
+				"email": "support@anthropic.com"
+			},
+			"source": "./plugins/gopls-lsp",
+			"category": "development",
+			"strict": false,
+			"lspServers": {
+				"gopls": {
+					"command": "gopls",
+					"extensionToLanguage": {
+						".go": "go"
+					}
+				}
+			}
+		}
+	]
+}
+```
+
+
+
+如果不是通过插件市场安装，而是通过自己手动安装的话，需要自己在插件的 .lsp.json 或者 marketplace.json 文件添加相关内容。
+
+
+
+**两种 LSP 配置方式对比**
+
+  ┌──────────┬──────────────────┬────────────┬──────────────────────────────────┐
+  │   方式                 │     配置文件                             │    位置                     │             适用场景                                                                 │
+  ├──────────┼──────────────────┼────────────┼──────────────────────────────────┤
+  │ 本地配置           │ .lsp.json                                  │ 项目根目录             │ 项目专属配置、快速测试、团队共享                              │
+  ├──────────┼──────────────────┼────────────┼──────────────────────────────────┤
+  │ 插件方式           │ marketplace.json                  │ 插件包内                │ 通用配置打包分发、插件市场                                           │
+  └──────────┴──────────────────┴────────────┴──────────────────────────────────┘
+
+
+
+官方插件在 marketplace.json 中通过 lspServers 字段定义 LSP 服务器：
+
+```json
+{
+	"name": "your-lsp-plugin",
+	"version": "1.0.0",
+	"description": "插件描述",
+	"author": {
+		"name": "你的名字",
+		"email": "邮箱"
+	},
+	"lspServers": {
+		"服务器ID": {
+			"command": "启动命令",
+			"args": [
+				"参数1",
+				"参数2"
+			],
+			"extensionToLanguage": {
+				".文件后缀": "语言ID"
+			},
+			"env": {
+				"环境变量键": "值"
+			},
+			"initializationOptions": {},
+			"settings": {}
+		}
+	}
+}
+```
+
+  配置字段详细说明
+
+  ┌───────────────────────┬──────┬────────────────────────────────────────────────┐
+  │         字段          │ 必需 │                      说明                      │
+  ├───────────────────────┼──────┼────────────────────────────────────────────────┤
+  │ command               │ ✅   │ LSP 服务器的可执行文件路径（如 gopls、clangd） │
+  ├───────────────────────┼──────┼────────────────────────────────────────────────┤
+  │ args                  │ ❌   │ 命令行参数数组（如 ["--stdio"]）               │
+  ├───────────────────────┼──────┼────────────────────────────────────────────────┤
+  │ extensionToLanguage   │ ✅   │ 文件后缀到 LSP 语言 ID 的映射                  │
+  ├───────────────────────┼──────┼────────────────────────────────────────────────┤
+  │ env                   │ ❌   │ 启动服务器时的环境变量                         │
+  ├───────────────────────┼──────┼────────────────────────────────────────────────┤
+  │ cwd                   │ ❌   │ 工作目录，支持 ${workspaceFolder} 占位符       │
+  ├───────────────────────┼──────┼────────────────────────────────────────────────┤
+  │ initializationOptions │ ❌   │ LSP initialize 请求的选项                      │
+  ├───────────────────────┼──────┼────────────────────────────────────────────────┤
+  │ settings              │ ❌   │ LSP 服务器的特定设置                           │
+  ├───────────────────────┼──────┼────────────────────────────────────────────────┤
+  │ transport             │ ❌   │ 通信方式，默认 stdio（标准输入输出）           │
+  └───────────────────────┴──────┴────────────────────────────────────────────────┘
+
+示例
+
+```json
+{
+	"$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+	"name": "pyright-lsp",
+	"description": "Python LSP support using Pyright type checker",
+	"version": "1.0.0",
+	"author": {
+		"name": "Your Name",
+		"email": "your@email.com"
+	},
+	"category": "development",
+	"strict": false,
+	"lspServers": {
+		"pyright": {
+			"command": "pyright-langserver",
+			"args": [
+				"--stdio"
+			],
+			"extensionToLanguage": {
+				".py": "python",
+				".pyi": "python"
+			},
+			"settings": {
+				"python": {
+					"analysis": {
+						"autoSearchPaths": true,
+						"useLibraryCodeForTypes": true,
+						"typeCheckingMode": "basic"
+					}
+				}
+			}
+		}
+	}
+}
+```
+
+c++
+
+```json
+{
+	"name": "clangd-lsp",
+	"description": "C/C++ LSP support using clangd",
+	"version": "1.0.0",
+	"author": {
+		"name": "Your Name"
+	},
+	"lspServers": {
+		"clangd": {
+			"command": "clangd",
+			"args": [
+				"--background-index",
+				"--clang-tidy",
+				"--completion-style=detailed"
+			],
+			"extensionToLanguage": {
+				".c": "c",
+				".h": "c",
+				".cpp": "cpp",
+				".hpp": "cpp",
+				".cc": "cpp"
+			}
+		}
+	}
+}
+```
+
+
+
+
+
+  ✅ 推荐：本地配置方式 (.lsp.json)
+
+  这是最常用也最灵活的方式，直接在项目根目录创建 .lsp.json 文件即可。
+
+  位置： 你的项目根目录/.lsp.json（和代码一起提交到 git）
+
+  完整格式示例：
+
+```json
+{
+	"lspServers": [
+		{
+			"name": "Pyright",
+			"languageId": "python",
+			"command": "pyright-langserver",
+			"args": [
+				"--stdio"
+			],
+			"settings": {
+				"python": {
+					"analysis": {
+						"typeCheckingMode": "basic",
+						"useLibraryCodeForTypes": true
+					}
+				}
+			}
+		}
+	]
+}
+```
+
+完整配置字段说明
+
+```json
+{
+	"lspServers": [
+		{
+			"name": "服务器显示名称",
+			"languageId": "语言ID (python/go/cpp/javascript)",
+			"command": "启动命令",
+			"args": [
+				"参数数组"
+			],
+			"env": {
+				"环境变量": "值"
+			},
+			"settings": {
+				"LSP服务器特定设置": "值"
+			}
+		}
+	]
+}
+```
+
+  **优先级规则**
+
+  .lsp.json 优先级更高 — 如果两种方式都配置了相同语言，项目根目录的 .lsp.json 会覆盖插件中的配置。
+
+  这样设计的好处是你可以在不修改插件的情况下，根据项目需求自定义 LSP 行为。
+
+  **常用配置示例**
+
+  示例 1: Pyright (Python)
+
+```json
+  {
+    "lspServers": [
+      {
+        "name": "Pyright",
+        "languageId": "python",
+        "command": "pyright-langserver",
+        "args": ["--stdio"]
+      }
+    ]
+  }
+```
+
+  安装：npm install -g pyright 或 pip install pyright                                                                                                                                                                                                                                                               
+
+  示例 2: Clangd (C/C++)
+
+```json
+  {
+    "lspServers": [
+      {
+        "name": "Clangd",
+        "languageId": "cpp",
+        "command": "clangd",
+        "args": ["--background-index", "--clang-tidy"]
+      }
+    ]
+  }
+```
+
+  示例 3: TypeScript Language Server
+
+ ```json
+ {
+    "lspServers": [
+      {
+        "name": "TypeScript",
+        "languageId": "typescript",
+        "command": "typescript-language-server",
+        "args": ["--stdio"]
+      }
+    ]
+  }
+ ```
+
+  安装：npm install -g typescript typescript-language-server  
+
+
 
 ## 对 AI 暴露的 LSP 能力
 
@@ -859,6 +1161,443 @@ gopls serve
 ```
 
 该能力会先请求 `textDocument/prepareCallHierarchy`，再请求 `callHierarchy/outgoingCalls`。
+
+### LSP大模型交互示例
+
+> 默认LSP调用过程终端界面看不到，可以从日志中看到：~\.claude\projects\D-go-src-segmentio-kafka-go\{session-id}.jsonl
+
+可以在设置中开启更详细的日志输出：不过只能看到调用LSP的tool名称，也看不到具体细节，需要看日志
+
+```json
+// 在 ~/.claude/settings.json 中添加
+{
+  "lsp": {
+     "debug": true,
+     "logLevel": "verbose"
+  }
+}
+```
+
+
+
+用户：询问代码问题
+
+```json
+{
+	"parentUuid": "cc51bd5f-5d35-4926-8174-9d90a522f7ff",
+	"isSidechain": false,
+	"promptId": "64894c97-0ec6-4a2a-a785-da03818e5653",
+	"type": "user",
+	"message": {
+		"role": "user",
+		"content": "请告诉我main.go中的main函数内部调用的Produce函数是哪里定义的？"
+	},
+	"uuid": "fddf59dd-d170-4940-bf18-94268235bb99",
+	"timestamp": "2026-06-16T14:30:58.984Z",
+	"permissionMode": "default",
+	"promptSource": "typed",
+	"userType": "external",
+	"entrypoint": "cli",
+	"cwd": "D:\\go\\src\\segmentio-kafka-go",
+	"sessionId": "7f197fa8-1f9c-467b-9192-ee50021fa4da",
+	"version": "2.1.168",
+	"gitBranch": "HEAD"
+}
+```
+
+大模型：调用工具 Glob全局查找（根据文件名和路径模式批量查找文件 - 递归搜索目录树）
+
+```json
+{
+	"parentUuid": "47c7dcb3-4ebb-485b-bf1e-bb0a7f65f757",
+	"isSidechain": false,
+	"message": {
+		"type": "message",
+		"id": "021781620256627dd8ef7af441b125f2150dd3f48013f2adc727d",
+		"role": "assistant",
+		"content": [
+			{
+				"type": "tool_use",
+				"id": "call_9p1mwnhu1ocb52lbt7ujv2u5",
+				"name": "Glob",
+				"input": {
+					"pattern": "**/main.go",
+					"path": "D:/go/src/segmentio-kafka-go"
+				}
+			}
+		],
+		"model": "auto",
+		"stop_reason": "tool_use",
+		"stop_sequence": null,
+		"usage": {
+			"input_tokens": 4340,
+			"cache_creation_input_tokens": 0,
+			"cache_read_input_tokens": 30520,
+			"output_tokens": 91,
+			"server_tool_use": {
+				"web_search_requests": 0,
+				"web_fetch_requests": 0
+			},
+			"service_tier": "standard",
+			"cache_creation": {
+				"ephemeral_1h_input_tokens": 0,
+				"ephemeral_5m_input_tokens": 0
+			},
+			"inference_geo": "",
+			"iterations": [],
+			"speed": "standard"
+		},
+		"stop_details": null
+	},
+	"type": "assistant",
+	"uuid": "d003c35e-4040-46ca-a2e0-18b0711e1064",
+	"timestamp": "2026-06-16T14:31:01.995Z",
+	"userType": "external",
+	"entrypoint": "cli",
+	"cwd": "D:\\go\\src\\segmentio-kafka-go",
+	"sessionId": "7f197fa8-1f9c-467b-9192-ee50021fa4da",
+	"version": "2.1.168",
+	"gitBranch": "HEAD"
+}
+```
+
+Agent：返回结果 找到文件
+
+```json
+{
+	"parentUuid": "d003c35e-4040-46ca-a2e0-18b0711e1064",
+	"isSidechain": false,
+	"promptId": "64894c97-0ec6-4a2a-a785-da03818e5653",
+	"type": "user",
+	"message": {
+		"role": "user",
+		"content": [
+			{
+				"tool_use_id": "call_9p1mwnhu1ocb52lbt7ujv2u5",
+				"type": "tool_result",
+				"content": "main.go"
+			}
+		]
+	},
+	"uuid": "f7bc9174-5db1-4411-955e-86e8d26306d0",
+	"timestamp": "2026-06-16T14:31:02.071Z",
+	"toolUseResult": {
+		"filenames": [
+			"main.go"
+		],
+		"durationMs": 72,
+		"numFiles": 1,
+		"truncated": false
+	},
+	"sourceToolAssistantUUID": "d003c35e-4040-46ca-a2e0-18b0711e1064",
+	"userType": "external",
+	"entrypoint": "cli",
+	"cwd": "D:\\develop\\go\\src\\kafka\\segmentio-kafka-go",
+	"sessionId": "7f197fa8-1f9c-467b-9192-ee50021fa4da",
+	"version": "2.1.168",
+	"gitBranch": "HEAD"
+}
+```
+
+大模型：调用工具 Read 读取文件
+
+```json
+{
+	"parentUuid": "ed9dcfb7-c526-4470-97e8-5c2cab583f29",
+	"isSidechain": false,
+	"message": {
+		"type": "message",
+		"id": "021781620259709dd8ef7af441b125f2150dd3f48013f2ab0e7c7",
+		"role": "assistant",
+		"content": [
+			{
+				"type": "tool_use",
+				"id": "call_7vppentm4wbh50oz3f3cqwqy",
+				"name": "Read",
+				"input": {
+					"file_path": "D:/go/src/segmentio-kafka-go/main.go"
+				}
+			}
+		],
+		"model": "auto",
+		"stop_reason": "tool_use",
+		"stop_sequence": null,
+		"usage": {
+			"input_tokens": 4500,
+			"cache_creation_input_tokens": 0,
+			"cache_read_input_tokens": 30520,
+			"output_tokens": 49,
+			"server_tool_use": {
+				"web_search_requests": 0,
+				"web_fetch_requests": 0
+			},
+			"service_tier": "standard",
+			"cache_creation": {
+				"ephemeral_1h_input_tokens": 0,
+				"ephemeral_5m_input_tokens": 0
+			},
+			"inference_geo": "",
+			"iterations": [],
+			"speed": "standard"
+		},
+		"stop_details": null
+	},
+	"type": "assistant",
+	"uuid": "4cb39a09-04d4-4fea-a53c-c66e9f7d499a",
+	"timestamp": "2026-06-16T14:31:06.389Z",
+	"userType": "external",
+	"entrypoint": "cli",
+	"cwd": "D:\\go\\src\\segmentio-kafka-go",
+	"sessionId": "7f197fa8-1f9c-467b-9192-ee50021fa4da",
+	"version": "2.1.168",
+	"gitBranch": "HEAD"
+}
+```
+
+Agent：返回结果
+
+```json
+{
+	"parentUuid": "4cb39a09-04d4-4fea-a53c-c66e9f7d499a",
+	"isSidechain": false,
+	"promptId": "64894c97-0ec6-4a2a-a785-da03818e5653",
+	"type": "user",
+	"message": {
+		"role": "user",
+		"content": [
+			{
+				"tool_use_id": "call_7vppentm4wbh50oz3f3cqwqy",
+				"type": "tool_result",
+				"content": "1\tpackage main\n2\t\n3\timport (\n4\t\t\"context\"\n5\t\t\"errors\"\n6\t\t\"fmt\"\n7\t\t\"log\"\n8\t\t\"net\"\n9\t\t\"strconv\"\n10\t\t\"time\"\n11\t\n12\t\tkafka \"github.com/segmentio/kafka-go\"\n13\t) func main() {Produce()}"
+			}
+		]
+	},
+	"uuid": "0bc09297-2056-41a9-a608-5f9566772b84",
+	"timestamp": "2026-06-16T14:31:06.397Z",
+	"toolUseResult": {
+		"type": "text",
+		"file": {
+			"filePath": "D:/go/src/segmentio-kafka-go/main.go",
+			"content": "package main\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"fmt\"\n\t\"log\"\n\t\"net\"\n\t\"strconv\"\n\t\"time\"\n\n\tkafka \"github.com/segmentio/kafka-go\"\n)\n\nfunc main() {\n\tProduce()}",
+			"numLines": 375,
+			"startLine": 1,
+			"totalLines": 375
+		}
+	},
+	"sourceToolAssistantUUID": "4cb39a09-04d4-4fea-a53c-c66e9f7d499a",
+	"userType": "external",
+	"entrypoint": "cli",
+	"cwd": "D:\\go\\src\\segmentio-kafka-go",
+	"sessionId": "7f197fa8-1f9c-467b-9192-ee50021fa4da",
+	"version": "2.1.168",
+	"gitBranch": "HEAD"
+}
+```
+
+大模型：分析
+
+```json
+{
+	"parentUuid": "9d7dd415-61bd-4ebd-af23-b9ca06cc45b5",
+	"isSidechain": false,
+	"message": {
+		"type": "message",
+		"id": "021781620264046dd8ef7af441b125f2150dd3f48013f2ae8293f",
+		"role": "assistant",
+		"content": [
+			{
+				"type": "text",
+				"text": "根据代码分析，`main` 函数调用的 `Produce()` 函数就在 **同一个 `main.go` 文件中** 定义的。让我用 LSP 确认：\n"
+			}
+		],
+		"model": "auto",
+		"stop_reason": "tool_use",
+		"stop_sequence": null,
+		"usage": {
+			"input_tokens": 5464,
+			"cache_creation_input_tokens": 0,
+			"cache_read_input_tokens": 34616,
+			"output_tokens": 257,
+			"server_tool_use": {
+				"web_search_requests": 0,
+				"web_fetch_requests": 0
+			},
+			"service_tier": "standard",
+			"cache_creation": {
+				"ephemeral_1h_input_tokens": 0,
+				"ephemeral_5m_input_tokens": 0
+			},
+			"inference_geo": "",
+			"iterations": [],
+			"speed": "standard"
+		},
+		"stop_details": null
+	},
+	"type": "assistant",
+	"uuid": "15fe50e9-bf27-4de1-ba04-577724960555",
+	"timestamp": "2026-06-16T14:31:11.102Z",
+	"userType": "external",
+	"entrypoint": "cli",
+	"cwd": "D:\\go\\src\\segmentio-kafka-go",
+	"sessionId": "7f197fa8-1f9c-467b-9192-ee50021fa4da",
+	"version": "2.1.168",
+	"gitBranch": "HEAD"
+}
+```
+
+大模型：调用工具 LSP
+
+```json
+{
+	"parentUuid": "15fe50e9-bf27-4de1-ba04-577724960555",
+	"isSidechain": false,
+	"message": {
+		"type": "message",
+		"id": "021781620264046dd8ef7af441b125f2150dd3f48013f2ae8293f",
+		"role": "assistant",
+		"content": [
+			{
+				"type": "tool_use",
+				"id": "call_59fl7axk2avh9oxc7d7saaxe",
+				"name": "LSP",
+				"input": {
+					"operation": "goToDefinition",
+					"filePath": "D:/go/src/segmentio-kafka-go/main.go",
+					"line": 371,  // 代码文件省略了部分注释代码，实际上这一行就是Produce()所在行
+					"character": 3
+				}
+			}
+		],
+		"model": "auto",
+		"stop_reason": "tool_use",
+		"stop_sequence": null,
+		"usage": {
+			"input_tokens": 5464,
+			"cache_creation_input_tokens": 0,
+			"cache_read_input_tokens": 34616,
+			"output_tokens": 257,
+			"server_tool_use": {
+				"web_search_requests": 0,
+				"web_fetch_requests": 0
+			},
+			"service_tier": "standard",
+			"cache_creation": {
+				"ephemeral_1h_input_tokens": 0,
+				"ephemeral_5m_input_tokens": 0
+			},
+			"inference_geo": "",
+			"iterations": [],
+			"speed": "standard"
+		},
+		"stop_details": null
+	},
+	"type": "assistant",
+	"uuid": "67e307bb-4a4b-4df5-ba41-e1ff746aeea7",
+	"timestamp": "2026-06-16T14:31:11.818Z",
+	"userType": "external",
+	"entrypoint": "cli",
+	"cwd": "D:\\go\\src\\segmentio-kafka-go",
+	"sessionId": "7f197fa8-1f9c-467b-9192-ee50021fa4da",
+	"version": "2.1.168",
+	"gitBranch": "HEAD"
+}
+```
+
+Agent：Tool(底层为LSP服务)返回
+
+```json
+{
+	"parentUuid": "67e307bb-4a4b-4df5-ba41-e1ff746aeea7",
+	"isSidechain": false,
+	"promptId": "64894c97-0ec6-4a2a-a785-da03818e5653",
+	"type": "user",
+	"message": {
+		"role": "user",
+		"content": [
+			{
+				"tool_use_id": "call_59fl7axk2avh9oxc7d7saaxe",
+				"type": "tool_result",
+				"content": "Defined in main.go:82:6"
+			}
+		]
+	},
+	"uuid": "3b225836-10d9-452a-bbcc-bf522d13e293",
+	"timestamp": "2026-06-16T14:31:22.494Z",
+	"toolUseResult": {
+		"operation": "goToDefinition",
+		"result": "Defined in main.go:82:6",
+		"filePath": "D:/go/src/segmentio-kafka-go/main.go",
+		"resultCount": 1,
+		"fileCount": 1
+	},
+	"sourceToolAssistantUUID": "67e307bb-4a4b-4df5-ba41-e1ff746aeea7",
+	"userType": "external",
+	"entrypoint": "cli",
+	"cwd": "D:\\go\\src\\segmentio-kafka-go",
+	"sessionId": "7f197fa8-1f9c-467b-9192-ee50021fa4da",
+	"version": "2.1.168",
+	"gitBranch": "HEAD"
+}
+```
+
+大模型：确认回复
+
+  工作流程是这样的：**得到的总结内容来源**
+
+  1. 第一步：用 Read 读取整个 main.go 文件 → 我获得了完整的文件内容
+  2. 第二步：用 LSP goToDefinition 确认位置 → 获得精确的行号
+  3. 第三步：基于已有的文件内容 + LSP 的定位信息 → 进行分析和总结
+
+```json
+{
+	"parentUuid": "76b4e528-435c-41d2-a490-24b7562ac7de",
+	"isSidechain": false,
+	"message": {
+		"type": "message",
+		"id": "021781620280135dd8ef7af441b125f2150dd3f48013f2ada13ac",
+		"role": "assistant",
+		"content": [
+			{
+				"type": "text",
+				"text": "**确认了！** `Produce()` 函数就在 **同一个 `main.go` 文件的第 82 行** 定义的。\n\n## 详细信息：\n\n| 项目 | 位置 |\n|------|------|\n| **调用位置** | `main.go:371` |\n| **定义位置** | `main.go:82` |\n| **函数签名** | `func Produce()` |\n\n这是一个**本地定义的函数**，不是从 `github.com/segmentio/kafka-go` 包导入的外部函数。\n\n## 函数功能概述：\n\n`Produce()` 函数创建了一个 Kafka `Writer`，用于向 Kafka 主题 `test` 批量发送 10 条消息（内容是 \"1\" 到 \"10\"），使用的配置包括：\n- Broker 地址：`xxx.xxx.xxx.xxx:9092`\n- 负载均衡：`LeastBytes` 策略\n- 确认模式：`RequireAll`（等待所有副本确认）\n- 发送模式：同步发送（`Async: false`）\n- 最多重试 3 次"
+			}
+		],
+		"model": "auto",
+		"stop_reason": "end_turn",
+		"stop_sequence": null,
+		"usage": {
+			"input_tokens": 5740,
+			"cache_creation_input_tokens": 0,
+			"cache_read_input_tokens": 34616,
+			"output_tokens": 303,
+			"server_tool_use": {
+				"web_search_requests": 0,
+				"web_fetch_requests": 0
+			},
+			"service_tier": "standard",
+			"cache_creation": {
+				"ephemeral_1h_input_tokens": 0,
+				"ephemeral_5m_input_tokens": 0
+			},
+			"inference_geo": "",
+			"iterations": [],
+			"speed": "standard"
+		},
+		"stop_details": null
+	},
+	"type": "assistant",
+	"uuid": "4447df12-8920-4d8a-a28d-bc1ffd499d8d",
+	"timestamp": "2026-06-16T14:31:29.880Z",
+	"userType": "external",
+	"entrypoint": "cli",
+	"cwd": "D:\\go\\src\\segmentio-kafka-go",
+	"sessionId": "7f197fa8-1f9c-467b-9192-ee50021fa4da",
+	"version": "2.1.168",
+	"gitBranch": "HEAD"
+}
+```
+
+
 
 ## LSP 补全能力与扩展设计
 
