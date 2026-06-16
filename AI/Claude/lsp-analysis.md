@@ -109,11 +109,189 @@ ENABLE_LSP_TOOL=1 claude
 4. LSP manager 初始化成功。
 5. 至少一个语言服务器连接成功且状态健康。
 
+## Agent SDK 中使用 LSP
+
+Claude Agent SDK 建立在 Claude Code runtime 之上。SDK 本身不提供独立的 LSP API，例如没有 `client.lsp.goToDefinition()` 这类直接调用接口。LSP 能力仍然通过 Claude Code 的内部 Tool 和插件系统生效。
+
+在 Agent SDK 场景中，链路是：
+
+```text
+Python / TypeScript 应用
+  ↓
+Claude Agent SDK
+  ↓
+Claude Code runtime / bundled Claude Code binary
+  ↓
+加载 Claude Code 配置和 plugins
+  ↓
+读取 LSP server 配置
+  ↓
+启动 language server 进程
+  ↓
+向 AI 暴露 LSP Tool
+```
+
+### SDK 中的 Tool 名称
+
+官方 Tools reference 中明确的工具名是 `LSP`。如果在 SDK 中显式设置 `allowed_tools` / `allowedTools`，需要把 `LSP` 加进去。
+
+Python 示例：
+
+```python
+from claude_agent_sdk import ClaudeAgentOptions
+
+options = ClaudeAgentOptions(
+    cwd="/path/to/project",
+    allowed_tools=["Read", "Grep", "Glob", "LSP"],
+)
+```
+
+TypeScript 示例：
+
+```ts
+const options = {
+  cwd: "/path/to/project",
+  allowedTools: ["Read", "Grep", "Glob", "LSP"],
+}
+```
+
+如果没有显式限制工具，SDK 会按 Claude Code runtime 的默认工具可用性和权限配置处理。如果显式限制了工具但漏掉 `LSP`，AI 就不能调用 LSP Tool。
+
+### SDK 加载官方 LSP 插件
+
+使用官方已支持的 LSP 插件时，通常不需要自己写 `.lsp.json`。需要做的是：
+
+1. 安装对应 language server binary，并确保命令在 `PATH` 中。
+2. 安装官方 LSP 插件，例如 `/plugin install gopls-lsp@claude-plugins-official`。
+3. SDK 会话加载对应 Claude Code 配置或显式加载插件。
+4. 如果设置了 `allowed_tools` / `allowedTools`，加入 `LSP`。
+
+SDK 默认会加载用户、项目、本地等 Claude Code 配置来源；如果显式设置 `setting_sources=[]` / `settingSources: []`，则不会自动加载项目和用户配置中的插件、skills、hooks 等内容。
+
+Python 示例：
+
+```python
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+async def main():
+    async for message in query(
+        prompt="Find where validateUser is defined and list its references.",
+        options=ClaudeAgentOptions(
+            cwd="/path/to/project",
+            allowed_tools=["Read", "Grep", "Glob", "LSP"],
+        ),
+    ):
+        print(message)
+
+asyncio.run(main())
+```
+
+TypeScript 示例：
+
+```ts
+import { query } from "@anthropic-ai/claude-agent-sdk"
+
+for await (const message of query({
+  prompt: "Find the implementation of UserService and explain its call hierarchy.",
+  options: {
+    cwd: "/path/to/project",
+    allowedTools: ["Read", "Grep", "Glob", "LSP"],
+  },
+})) {
+  console.log(message)
+}
+```
+
+### SDK 显式加载本地 LSP 插件
+
+如果不是使用已安装的官方插件，也可以在 SDK options 中显式加载本地插件。
+
+TypeScript 示例：
+
+```ts
+import { query } from "@anthropic-ai/claude-agent-sdk"
+
+for await (const message of query({
+  prompt: "Analyze this project with code intelligence.",
+  options: {
+    plugins: [
+      { type: "local", path: "./my-lsp-plugin" },
+    ],
+    allowedTools: ["Read", "Grep", "Glob", "LSP"],
+  },
+})) {
+  console.log(message)
+}
+```
+
+Python 示例：
+
+```python
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+async def main():
+    async for message in query(
+        prompt="Analyze this project with code intelligence.",
+        options=ClaudeAgentOptions(
+            plugins=[
+                {"type": "local", "path": "./my-lsp-plugin"},
+            ],
+            allowed_tools=["Read", "Grep", "Glob", "LSP"],
+        ),
+    ):
+        print(message)
+
+asyncio.run(main())
+```
+
+### SDK 与 LSP server 启动
+
+SDK 不要求用户手动运行 language server，例如不需要手动执行：
+
+```bash
+gopls serve
+```
+
+正确做法是让插件声明启动方式，Claude Code runtime 根据插件配置启动对应进程。官方插件已经提供这类配置；自定义插件需要自己提供。
+
 ## LSP server 配置来源
 
-Claude Code 当前只支持通过插件提供 LSP server 配置，不支持直接从用户 settings 或 project settings 中配置 LSP server。
+Claude Code 当前通过插件提供 LSP server 配置。插件加载后，Claude Code 会读取插件中的 LSP server 配置，并交给 LSP manager 管理。
 
-插件加载后，Claude Code 会读取插件中的 LSP server 配置，并交给 LSP manager 管理。
+配置可以来自：
+
+1. 插件根目录的 `.lsp.json`。
+2. 插件 `.claude-plugin/plugin.json` 中的 `lspServers` 字段。
+3. marketplace / catalog 对插件的 `lspServers` 声明。
+
+使用官方已支持的 LSP 插件时，通常不需要自己写 `.lsp.json`；安装官方插件和对应 language server binary 即可。官方不支持的语言、需要特殊启动参数、需要调整 diagnostics 行为时，才需要自定义 LSP 插件配置。
+
+自定义 `.lsp.json` 示例：
+
+```json
+{
+  "go": {
+    "command": "gopls",
+    "args": ["serve"],
+    "extensionToLanguage": {
+      ".go": "go"
+    },
+    "diagnostics": false
+  }
+}
+```
+
+字段含义：
+
+| 字段 | 说明 |
+|---|---|
+| `go` | LSP server 配置名称，在插件内唯一即可 |
+| `command` | Claude Code runtime 要启动的 language server 命令，必须在 `PATH` 中 |
+| `args` | 启动 language server 时传入的参数 |
+| `extensionToLanguage` | 文件扩展名到 LSP language id 的映射 |
+| `diagnostics` | 是否把 diagnostics 自动注入 Claude 上下文，默认 `true` |
 
 ## 官方 LSP 插件与语言服务器安装命令
 
