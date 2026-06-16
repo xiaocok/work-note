@@ -34,25 +34,6 @@ Claude Code 中的 LSP 能力以内部 Tool 的形式暴露给 AI。
 
 AI 不直接连接语言服务器，也不直接发送 LSP 协议请求。Claude Code 在本地接收 AI 的 tool 调用，然后把 `operation/filePath/line/character` 转换成真实的 LSP method 和 params，再通过内部 LSP manager 与语言服务器通信。
 
-## LSP Tool 的暴露方式
-
-`LSPTool` 是标准内部 Tool，具备以下特征：
-
-- 工具名：`LSP`
-- 对 AI 暴露的能力入口：`operation`
-- 输入参数：`filePath`、`line`、`character`
-- 输出结果：格式化后的 `result` 文本
-- 只读工具：不会直接修改文件
-- 并发安全：可以并发执行
-- 延迟加载：初始化未完成时可走 `defer_loading`
-
-工具是否可用受运行时状态控制：
-
-1. `ENABLE_LSP_TOOL` 环境变量需要开启。
-2. LSP manager 需要初始化成功。
-3. 至少有一个语言服务器连接成功且状态健康。
-4. 当前文件类型需要有插件提供对应的 LSP server。
-
 ## 整体原理
 
 Claude Code 的 LSP 能力由四层组成：
@@ -89,6 +70,25 @@ flowchart TD
   Q --> R[返回 tool_result.content 给 AI]
 ```
 
+## LSP Tool 的暴露方式
+
+`LSPTool` 是标准内部 Tool，具备以下特征：
+
+- 工具名：`LSP`
+- 对 AI 暴露的能力入口：`operation`
+- 输入参数：`filePath`、`line`、`character`
+- 输出结果：格式化后的 `result` 文本
+- 只读工具：不会直接修改文件
+- 并发安全：可以并发执行
+- 延迟加载：初始化未完成时可走 `defer_loading`
+
+工具是否可用受运行时状态控制：
+
+1. `ENABLE_LSP_TOOL` 环境变量需要开启。
+2. LSP manager 需要初始化成功。
+3. 至少有一个语言服务器连接成功且状态健康。
+4. 当前文件类型需要有插件提供对应的 LSP server。
+
 ## 启用方式
 
 LSP 能力需要 Claude Code `2.0.74+`。当前源码相关 changelog 显示 bundled CLI 已高于该版本，但精确运行时版本需要通过 `claude --version` 或构建产物确认。
@@ -108,6 +108,297 @@ ENABLE_LSP_TOOL=1 claude
 3. 工作区通过 trust 检查。
 4. LSP manager 初始化成功。
 5. 至少一个语言服务器连接成功且状态健康。
+
+## LSP server 配置来源
+
+Claude Code 当前通过插件提供 LSP server 配置。插件加载后，Claude Code 会读取插件中的 LSP server 配置，并交给 LSP manager 管理。
+
+配置可以来自：
+
+1. 插件根目录的 `.lsp.json`。
+2. 插件 `.claude-plugin/plugin.json` 中的 `lspServers` 字段。
+3. marketplace / catalog 对插件的 `lspServers` 声明。
+
+使用官方已支持的 LSP 插件时，通常不需要自己写 `.lsp.json`；安装官方插件和对应 language server binary 即可。官方不支持的语言、需要特殊启动参数、需要调整 diagnostics 行为时，才需要自定义 LSP 插件配置。
+
+自定义 `.lsp.json` 示例：
+
+```json
+{
+  "go": {
+    "command": "gopls",
+    "args": ["serve"],
+    "extensionToLanguage": {
+      ".go": "go"
+    },
+    "diagnostics": false
+  }
+}
+```
+
+字段含义：
+
+| 字段 | 说明 |
+|---|---|
+| `go` | LSP server 配置名称，在插件内唯一即可 |
+| `command` | Claude Code runtime 要启动的 language server 命令，必须在 `PATH` 中 |
+| `args` | 启动 language server 时传入的参数 |
+| `extensionToLanguage` | 文件扩展名到 LSP language id 的映射 |
+| `diagnostics` | 是否把 diagnostics 自动注入 Claude 上下文，默认 `true` |
+
+## 官方 LSP 插件与语言服务器安装命令
+
+官方插件仓库地址：<https://github.com/anthropics/claude-plugins-official/tree/main/plugins>
+
+安装 Claude Code 插件的通用方式：
+
+```text
+/plugin install {plugin-name}@claude-plugins-official
+```
+
+也可以通过 Claude Code 内的 `/plugin > Discover` 浏览并安装。
+
+下表列出官方 `plugins` 目录中已提供的 LSP 插件、支持的语言/文件扩展名，以及对应语言服务器的安装命令。
+
+| Claude 插件 | 语言 / LSP 服务 | 支持扩展名 | 插件安装命令 | LSP 服务安装命令 |
+|---|---|---|---|---|
+| `clangd-lsp` | C / C++，clangd | `.c`, `.h`, `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hxx`, `.C`, `.H` | `/plugin install clangd-lsp@claude-plugins-official` | macOS: `brew install llvm`；Ubuntu/Debian: `sudo apt install clangd`；Fedora: `sudo dnf install clang-tools-extra`；Arch: `sudo pacman -S clang`；Windows: `winget install LLVM.LLVM` |
+| `csharp-lsp` | C#，csharp-ls | `.cs` | `/plugin install csharp-lsp@claude-plugins-official` | 推荐: `dotnet tool install --global csharp-ls`；macOS: `brew install csharp-ls` |
+| `gopls-lsp` | Go，gopls | `.go` | `/plugin install gopls-lsp@claude-plugins-official` | `go install golang.org/x/tools/gopls@latest` |
+| `jdtls-lsp` | Java，Eclipse JDT.LS | `.java` | `/plugin install jdtls-lsp@claude-plugins-official` | macOS: `brew install jdtls`；Arch AUR: `yay -S jdtls`；其他 Linux: 手动安装 Eclipse JDT.LS 并创建 `jdtls` wrapper |
+| `kotlin-lsp` | Kotlin，Kotlin LSP | `.kt`, `.kts` | `/plugin install kotlin-lsp@claude-plugins-official` | `brew install JetBrains/utils/kotlin-lsp` |
+| `lua-lsp` | Lua，Lua Language Server | `.lua` | `/plugin install lua-lsp@claude-plugins-official` | macOS: `brew install lua-language-server`；Ubuntu/Debian: `sudo snap install lua-language-server --classic`；Arch: `sudo pacman -S lua-language-server`；Fedora: `sudo dnf install lua-language-server` |
+| `php-lsp` | PHP，Intelephense | `.php` | `/plugin install php-lsp@claude-plugins-official` | npm: `npm install -g intelephense`；yarn: `yarn global add intelephense` |
+| `pyright-lsp` | Python，Pyright | `.py`, `.pyi` | `/plugin install pyright-lsp@claude-plugins-official` | npm: `npm install -g pyright`；pip: `pip install pyright`；pipx: `pipx install pyright` |
+| `ruby-lsp` | Ruby，Ruby LSP | `.rb`, `.rake`, `.gemspec`, `.ru`, `.erb` | `/plugin install ruby-lsp@claude-plugins-official` | gem: `gem install ruby-lsp`；Bundler: 在 `Gemfile` 加 `gem 'ruby-lsp', group: :development` 后执行 `bundle install` |
+| `rust-analyzer-lsp` | Rust，rust-analyzer | `.rs` | `/plugin install rust-analyzer-lsp@claude-plugins-official` | 推荐: `rustup component add rust-analyzer`；macOS: `brew install rust-analyzer`；Ubuntu/Debian: `sudo apt install rust-analyzer`；Arch: `sudo pacman -S rust-analyzer` |
+| `swift-lsp` | Swift，SourceKit-LSP | `.swift` | `/plugin install swift-lsp@claude-plugins-official` | macOS: 安装 Xcode，或 `brew install swift`；Linux: 从 <https://www.swift.org/download/> 安装 Swift，确保 `sourcekit-lsp` 在 PATH 中 |
+| `typescript-lsp` | TypeScript / JavaScript，typescript-language-server | `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs`, `.cjs` | `/plugin install typescript-lsp@claude-plugins-official` | npm: `npm install -g typescript-language-server typescript`；yarn: `yarn global add typescript-language-server typescript` |
+
+### Java JDT.LS 安装细节
+
+`jdtls-lsp` 使用的是 Eclipse JDT.LS。JDT.LS 要求本机安装 **Java 17 或更高版本的 JDK**，不是只安装 JRE。
+
+#### Java 版本要求
+
+先确认当前 Java 版本：
+
+```bash
+java -version
+```
+
+常见版本对应关系：
+
+| 常见说法 | `java -version` 可能显示 | 是否满足 JDT.LS 要求 |
+|---|---|---:|
+| Java 8 | `1.8.0_xxx` | 否 |
+| Java 11 | `11.x.x` | 否 |
+| Java 17 | `17.x.x` | 是 |
+| Java 21 | `21.x.x` | 是 |
+
+`Java 8` 和 `Java 1.8` 是同一个版本。`JDK 17+` 表示 JDK 17、JDK 21 等，不包括 Java 8 / Java 1.8。
+
+如果本机只有 Java 8 或 Java 11，通常无法启动当前官方 `jdtls-lsp` 依赖的 JDT.LS 服务。解决方案是额外安装一个 JDK 17+，专门用于运行 JDT.LS。
+
+这不要求业务项目升级到 Java 17。Java 8 项目仍然可以保持 Java 8 编译目标，例如 Maven 中继续使用：
+
+```xml
+<source>1.8</source>
+<target>1.8</target>
+```
+
+或 Gradle 中继续使用：
+
+```gradle
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+```
+
+推荐做法是：
+
+```text
+JDK 8：用于老项目编译和运行
+JDK 17+：用于启动 JDT.LS language server
+```
+
+#### 推荐的 JDK 17+ 发行版
+
+JDK 17+ 不一定收费。为了减少授权不确定性，建议优先使用常见 OpenJDK 发行版，而不是默认选择 Oracle JDK。
+
+| JDK 发行版 | 出品方 / 维护方 | 说明 | 适合场景 |
+|---|---|---|---|
+| Eclipse Temurin | Eclipse Adoptium / Eclipse Foundation | 社区常用 OpenJDK 发行版，前身是 AdoptOpenJDK | 本地开发、CI、企业环境 |
+| Amazon Corretto | Amazon / AWS | AWS 维护的 OpenJDK 发行版，免费长期支持 | AWS、服务器、企业环境 |
+| Microsoft Build of OpenJDK | Microsoft | Microsoft 维护的 OpenJDK 发行版 | Windows、Azure、微软生态 |
+| Azul Zulu Community | Azul Systems | Azul 维护的 OpenJDK 发行版，有免费社区版和商业支持版 | 企业环境、本地开发 |
+| Homebrew `openjdk@17` | Homebrew 分发的 OpenJDK 包 | macOS 上安装方便 | macOS 本地开发 |
+| Oracle JDK | Oracle | Oracle 官方 JDK，授权政策需要单独确认 | 已确认 Oracle 授权的环境 |
+
+推荐优先级：
+
+1. Eclipse Temurin 17 / 21
+2. Amazon Corretto 17 / 21
+3. Microsoft OpenJDK 17 / 21
+4. Homebrew `openjdk@17`
+
+#### 安装 JDK 17+
+
+macOS 推荐使用 Eclipse Temurin：
+
+```bash
+brew install --cask temurin@17
+```
+
+或者使用 Amazon Corretto：
+
+```bash
+brew install --cask corretto17
+```
+
+也可以使用 Homebrew OpenJDK：
+
+```bash
+brew install openjdk@17
+```
+
+安装后确认：
+
+```bash
+java -version
+```
+
+如果系统同时存在 JDK 8 和 JDK 17+，需要确保启动 `jdtls` 时使用的是 JDK 17+。可以通过 `JAVA_HOME` 指定：
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+Linux 可以选择 Eclipse Temurin、Amazon Corretto 或系统包管理器中的 OpenJDK 17。例如 Ubuntu / Debian：
+
+```bash
+sudo apt update
+sudo apt install openjdk-17-jdk
+```
+
+安装后确认：
+
+```bash
+java -version
+```
+
+#### 安装 JDT.LS
+
+macOS 可以用 Homebrew 安装 JDT.LS：
+
+```bash
+brew install jdtls
+```
+
+安装后确认命令可用：
+
+```bash
+command -v jdtls
+```
+
+Arch Linux 可以通过 AUR 安装：
+
+```bash
+yay -S jdtls
+```
+
+其他 Linux 发行版通常需要手动安装 Eclipse JDT.LS：
+
+1. 从 Eclipse JDT.LS snapshots 下载发行包：<https://download.eclipse.org/jdtls/snapshots/>
+2. 解压到固定目录，例如：
+
+```bash
+mkdir -p ~/.local/share/jdtls
+```
+
+3. 将下载的 JDT.LS 内容解压到该目录。
+4. 在 `PATH` 中创建名为 `jdtls` 的 wrapper 脚本。
+
+wrapper 脚本示例：
+
+```bash
+#!/usr/bin/env bash
+export JAVA_HOME="${JAVA_HOME:-/path/to/jdk-17}"
+export PATH="$JAVA_HOME/bin:$PATH"
+JDTLS_HOME="$HOME/.local/share/jdtls"
+LAUNCHER_JAR=$(ls "$JDTLS_HOME"/plugins/org.eclipse.equinox.launcher_*.jar | head -n 1)
+java \
+  -Declipse.application=org.eclipse.jdt.ls.core.id1 \
+  -Dosgi.bundles.defaultStartLevel=4 \
+  -Declipse.product=org.eclipse.jdt.ls.core.product \
+  -Dlog.protocol=true \
+  -Dlog.level=ALL \
+  -Xmx1G \
+  --add-modules=ALL-SYSTEM \
+  --add-opens java.base/java.util=ALL-UNNAMED \
+  --add-opens java.base/java.lang=ALL-UNNAMED \
+  -jar "$LAUNCHER_JAR" \
+  -configuration "$JDTLS_HOME/config_linux" \
+  -data "${1:-$PWD/.jdtls-workspace}"
+```
+
+保存为 `~/.local/bin/jdtls`，并赋予执行权限：
+
+```bash
+chmod +x ~/.local/bin/jdtls
+```
+
+确保 `~/.local/bin` 在 `PATH` 中：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+最后确认：
+
+```bash
+command -v jdtls
+```
+
+#### 部署 Claude Java LSP 插件
+
+JDK 17+ 和 `jdtls` 准备好后，安装 Claude 官方插件：
+
+```text
+/plugin install jdtls-lsp@claude-plugins-official
+```
+
+如果是在已运行的 Claude Code 会话中安装插件，执行：
+
+```text
+/reload-plugins
+```
+
+启动 Claude Code 时开启 LSP Tool：
+
+```bash
+ENABLE_LSP_TOOL=1 claude
+```
+
+使用 Agent SDK 时，如果显式限制了工具，需要允许 `LSP`：
+
+```python
+allowed_tools=["Read", "Grep", "Glob", "LSP"]
+```
+
+部署完成后，打开 Java 项目文件，Claude Code runtime 会根据 `jdtls-lsp` 插件配置启动本机 `jdtls` 进程。用户一般不需要手动运行 `jdtls`。
+
+### 使用官方 LSP 插件的基本步骤
+
+1. 安装对应语言服务器，并确保可执行命令在 `PATH` 中。
+2. 在 Claude Code 中安装对应 LSP 插件。
+3. 启动 Claude Code 时开启 LSP Tool：
+
+```bash
+ENABLE_LSP_TOOL=1 claude
+```
+
+4. 打开对应语言的项目文件，等待 LSP manager 初始化并连接语言服务器。
 
 ## Agent SDK 中使用 LSP
 
@@ -256,84 +547,6 @@ gopls serve
 
 正确做法是让插件声明启动方式，Claude Code runtime 根据插件配置启动对应进程。官方插件已经提供这类配置；自定义插件需要自己提供。
 
-## LSP server 配置来源
-
-Claude Code 当前通过插件提供 LSP server 配置。插件加载后，Claude Code 会读取插件中的 LSP server 配置，并交给 LSP manager 管理。
-
-配置可以来自：
-
-1. 插件根目录的 `.lsp.json`。
-2. 插件 `.claude-plugin/plugin.json` 中的 `lspServers` 字段。
-3. marketplace / catalog 对插件的 `lspServers` 声明。
-
-使用官方已支持的 LSP 插件时，通常不需要自己写 `.lsp.json`；安装官方插件和对应 language server binary 即可。官方不支持的语言、需要特殊启动参数、需要调整 diagnostics 行为时，才需要自定义 LSP 插件配置。
-
-自定义 `.lsp.json` 示例：
-
-```json
-{
-  "go": {
-    "command": "gopls",
-    "args": ["serve"],
-    "extensionToLanguage": {
-      ".go": "go"
-    },
-    "diagnostics": false
-  }
-}
-```
-
-字段含义：
-
-| 字段 | 说明 |
-|---|---|
-| `go` | LSP server 配置名称，在插件内唯一即可 |
-| `command` | Claude Code runtime 要启动的 language server 命令，必须在 `PATH` 中 |
-| `args` | 启动 language server 时传入的参数 |
-| `extensionToLanguage` | 文件扩展名到 LSP language id 的映射 |
-| `diagnostics` | 是否把 diagnostics 自动注入 Claude 上下文，默认 `true` |
-
-## 官方 LSP 插件与语言服务器安装命令
-
-官方插件仓库地址：<https://github.com/anthropics/claude-plugins-official/tree/main/plugins>
-
-安装 Claude Code 插件的通用方式：
-
-```text
-/plugin install {plugin-name}@claude-plugins-official
-```
-
-也可以通过 Claude Code 内的 `/plugin > Discover` 浏览并安装。
-
-下表列出官方 `plugins` 目录中已提供的 LSP 插件、支持的语言/文件扩展名，以及对应语言服务器的安装命令。
-
-| Claude 插件 | 语言 / LSP 服务 | 支持扩展名 | 插件安装命令 | LSP 服务安装命令 |
-|---|---|---|---|---|
-| `clangd-lsp` | C / C++，clangd | `.c`, `.h`, `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hxx`, `.C`, `.H` | `/plugin install clangd-lsp@claude-plugins-official` | macOS: `brew install llvm`；Ubuntu/Debian: `sudo apt install clangd`；Fedora: `sudo dnf install clang-tools-extra`；Arch: `sudo pacman -S clang`；Windows: `winget install LLVM.LLVM` |
-| `csharp-lsp` | C#，csharp-ls | `.cs` | `/plugin install csharp-lsp@claude-plugins-official` | 推荐: `dotnet tool install --global csharp-ls`；macOS: `brew install csharp-ls` |
-| `gopls-lsp` | Go，gopls | `.go` | `/plugin install gopls-lsp@claude-plugins-official` | `go install golang.org/x/tools/gopls@latest` |
-| `jdtls-lsp` | Java，Eclipse JDT.LS | `.java` | `/plugin install jdtls-lsp@claude-plugins-official` | macOS: `brew install jdtls`；Arch AUR: `yay -S jdtls`；其他 Linux: 手动安装 Eclipse JDT.LS 并创建 `jdtls` wrapper |
-| `kotlin-lsp` | Kotlin，Kotlin LSP | `.kt`, `.kts` | `/plugin install kotlin-lsp@claude-plugins-official` | `brew install JetBrains/utils/kotlin-lsp` |
-| `lua-lsp` | Lua，Lua Language Server | `.lua` | `/plugin install lua-lsp@claude-plugins-official` | macOS: `brew install lua-language-server`；Ubuntu/Debian: `sudo snap install lua-language-server --classic`；Arch: `sudo pacman -S lua-language-server`；Fedora: `sudo dnf install lua-language-server` |
-| `php-lsp` | PHP，Intelephense | `.php` | `/plugin install php-lsp@claude-plugins-official` | npm: `npm install -g intelephense`；yarn: `yarn global add intelephense` |
-| `pyright-lsp` | Python，Pyright | `.py`, `.pyi` | `/plugin install pyright-lsp@claude-plugins-official` | npm: `npm install -g pyright`；pip: `pip install pyright`；pipx: `pipx install pyright` |
-| `ruby-lsp` | Ruby，Ruby LSP | `.rb`, `.rake`, `.gemspec`, `.ru`, `.erb` | `/plugin install ruby-lsp@claude-plugins-official` | gem: `gem install ruby-lsp`；Bundler: 在 `Gemfile` 加 `gem 'ruby-lsp', group: :development` 后执行 `bundle install` |
-| `rust-analyzer-lsp` | Rust，rust-analyzer | `.rs` | `/plugin install rust-analyzer-lsp@claude-plugins-official` | 推荐: `rustup component add rust-analyzer`；macOS: `brew install rust-analyzer`；Ubuntu/Debian: `sudo apt install rust-analyzer`；Arch: `sudo pacman -S rust-analyzer` |
-| `swift-lsp` | Swift，SourceKit-LSP | `.swift` | `/plugin install swift-lsp@claude-plugins-official` | macOS: 安装 Xcode，或 `brew install swift`；Linux: 从 <https://www.swift.org/download/> 安装 Swift，确保 `sourcekit-lsp` 在 PATH 中 |
-| `typescript-lsp` | TypeScript / JavaScript，typescript-language-server | `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs`, `.cjs` | `/plugin install typescript-lsp@claude-plugins-official` | npm: `npm install -g typescript-language-server typescript`；yarn: `yarn global add typescript-language-server typescript` |
-
-### 使用官方 LSP 插件的基本步骤
-
-1. 安装对应语言服务器，并确保可执行命令在 `PATH` 中。
-2. 在 Claude Code 中安装对应 LSP 插件。
-3. 启动 Claude Code 时开启 LSP Tool：
-
-```bash
-ENABLE_LSP_TOOL=1 claude
-```
-
-4. 打开对应语言的项目文件，等待 LSP manager 初始化并连接语言服务器。
-
 ## 对 AI 暴露的 LSP 能力
 
 `LSP` Tool 对 AI 暴露的是一个工具入口。AI 通过 `operation` 选择具体能力。
@@ -349,285 +562,6 @@ ENABLE_LSP_TOOL=1 claude
 | `prepareCallHierarchy` | 获取当前位置函数/方法的调用层级入口项 | 需要先确认当前位置是否能做调用层级分析时 | `textDocument/prepareCallHierarchy` |
 | `incomingCalls` | 查找哪些函数/方法调用了当前位置函数/方法 | 需要分析上游调用方、入口路径、影响范围时 | `textDocument/prepareCallHierarchy` + `callHierarchy/incomingCalls` |
 | `outgoingCalls` | 查找当前位置函数/方法内部调用了哪些函数/方法 | 需要分析下游依赖、执行链路、函数内部调用关系时 | `textDocument/prepareCallHierarchy` + `callHierarchy/outgoingCalls` |
-
-## LSP 补全能力
-
-LSP 协议本身支持代码补全，标准 method 是：
-
-```text
-textDocument/completion
-```
-
-当前 Claude Code 的 `LSP` Tool 没有把补全能力暴露给 AI。也就是说，很多官方 LSP 插件背后的语言服务器本身可能支持补全，但当前 Tool schema 中没有 `completion` operation，AI 不能直接通过现有 `LSP` Tool 调用代码补全。
-
-### 补全请求参数
-
-标准 `textDocument/completion` 请求通常包含：
-
-```json
-{
-  "textDocument": {
-    "uri": "file:///path/to/src/foo.ts"
-  },
-  "position": {
-    "line": 9,
-    "character": 14
-  },
-  "context": {
-    "triggerKind": 1
-  }
-}
-```
-
-其中 `line` 和 `character` 是 LSP 协议的 0-based position。
-
-`context.triggerKind` 常见值：
-
-| 值 | 含义 |
-|---:|---|
-| `1` | 手动触发补全 |
-| `2` | 由触发字符触发，例如 `.`, `:`, `/` |
-| `3` | 重新触发未完成的补全 |
-
-标准请求参数中没有 `limit`、`maxItems`、`onlyKinds` 这类字段。
-
-### 补全返回结果
-
-`textDocument/completion` 可能返回两种结构：
-
-```ts
-CompletionItem[]
-```
-
-或：
-
-```ts
-CompletionList
-```
-
-`CompletionList` 结构类似：
-
-```json
-{
-  "isIncomplete": false,
-  "items": [
-    {
-      "label": "map",
-      "kind": 2,
-      "detail": "method Array<T>.map(...)"
-    }
-  ]
-}
-```
-
-`isIncomplete: true` 表示结果不完整，客户端通常会在用户继续输入后重新请求补全。
-
-### 是否能指定返回数量
-
-标准 LSP completion 请求不支持让服务端只返回指定数量，例如不能标准化地传：
-
-```json
-{
-  "limit": 20
-}
-```
-
-如果需要限制数量，应该由客户端在拿到结果后做截断：
-
-```ts
-items.slice(0, limit)
-```
-
-对于 Claude Code 场景，默认不应把全部补全项返回给 AI，建议本地限制返回数量，例如默认只展示前 20 个。
-
-### 是否能指定返回类型
-
-标准 LSP completion 请求也不支持让服务端只返回某几类补全项，例如不能标准化地传：
-
-```json
-{
-  "onlyKinds": ["Method", "Function"]
-}
-```
-
-但每个 `CompletionItem` 通常会带 `kind` 字段，客户端可以在本地过滤：
-
-```ts
-items.filter(item => item.kind === CompletionItemKind.Method)
-```
-
-常见 `CompletionItemKind` 包括：
-
-| 类型 | 含义 |
-|---|---|
-| `Text` | 文本 |
-| `Method` | 方法 |
-| `Function` | 函数 |
-| `Constructor` | 构造器 |
-| `Field` | 字段 |
-| `Variable` | 变量 |
-| `Class` | 类 |
-| `Interface` | 接口 |
-| `Module` | 模块 |
-| `Property` | 属性 |
-| `Keyword` | 关键字 |
-| `Snippet` | 代码片段 |
-| `File` | 文件 |
-| `Folder` | 目录 |
-
-### 服务端和客户端的职责划分
-
-LSP server 负责语义层面的候选生成。比如：
-
-```ts
-user.
-```
-
-语言服务器通常会根据 `user` 的类型返回该对象上的成员，例如：
-
-- `name`：Property
-- `age`：Property
-- `getName`：Method
-- `updateProfile`：Method
-
-这类“当前位置语义上可以补什么”的判断主要由 LSP server 完成。
-
-客户端负责展示层面的过滤和控制，例如：
-
-- 根据已输入前缀过滤
-- 根据 `CompletionItemKind` 过滤
-- 限制展示数量
-- 按 `sortText` / `filterText` / `label` 排序
-- 控制是否展示 `detail`
-- 控制是否展示 `documentation`
-- 控制是否调用 `completionItem/resolve`
-
-因此，服务端通常会返回“当前位置语义上合理的候选集合”，但不保证只返回变量、只返回函数或只返回方法。如果只想要某类结果，需要客户端再过滤。
-
-### 对象成员补全示例
-
-代码：
-
-```ts
-user.
-```
-
-服务端可能返回：
-
-```text
-name           Property
-age            Property
-getName        Method
-updateProfile  Method
-toString       Method
-```
-
-如果只需要方法，客户端再过滤 `Method`：
-
-```text
-getName        Method
-updateProfile  Method
-toString       Method
-```
-
-### 表达式位置补全示例
-
-代码：
-
-```ts
-const result = ma
-```
-
-服务端可能返回：
-
-```text
-mapUser        Function
-maxCount       Variable
-Math           Module
-Map            Class
-match          Keyword / Snippet
-```
-
-在表达式位置，函数、变量、类、模块、关键字等都可能是合法候选，因此服务端不一定只返回变量。
-
-### 性能和 token 控制
-
-补全结果可能非常多，且每个补全项可能包含较长的 `detail`、`documentation`、`insertText`、`additionalTextEdits` 等字段。对于 Claude Code 这类把结果返回给 AI 的场景，全量返回会带来：
-
-- LSP server 响应变慢
-- 本地处理变慢
-- tool result 过长
-- token 成本升高
-- 干扰模型关注重点
-
-更合理的策略是轻量优先：
-
-| 控制项 | 建议默认值 |
-|---|---:|
-| `limit` | `20` |
-| `includeDetail` | `true` |
-| `includeDocumentation` | `false` |
-| `includeInsertText` | `false` |
-| `includeAdditionalTextEdits` | `false` |
-| `resolveItems` | `false` |
-
-补全结果建议先返回轻量列表，例如：
-
-```text
-Found 128 completion items, showing top 20:
-
-1. map [Method]
-   detail: Array<T>.map(...)
-
-2. length [Property]
-   detail: number
-```
-
-### completionItem/resolve
-
-LSP 还支持按需解析单个补全项：
-
-```text
-completionItem/resolve
-```
-
-很多 IDE 会先请求轻量补全列表，用户选中或停留在某一项时，再调用 `completionItem/resolve` 获取更完整的：
-
-- documentation
-- detail
-- additionalTextEdits
-- auto import edits
-- 更完整的 textEdit
-
-如果 Claude Code 后续扩展补全能力，也适合采用两阶段设计：
-
-1. `completion`：返回轻量候选列表。
-2. `resolveCompletionItem`：按需解析某一个候选项。
-
-### 如果扩展 Claude Code 的 completion operation
-
-最小实现不只是增加 `completion → textDocument/completion` 映射，还需要同步扩展：
-
-1. operation enum：增加 `completion`。
-2. Tool prompt：告诉 AI 可以调用 `completion`。
-3. method 映射：增加 `completion → textDocument/completion`。
-4. 结果格式化：支持 `CompletionItem[]` 和 `CompletionList`。
-5. 输出控制：支持本地 `limit`、`kinds`、`includeDetail`、`includeDocumentation` 等参数。
-
-推荐的 Tool 输入可以设计为：
-
-```json
-{
-  "operation": "completion",
-  "filePath": "src/foo.ts",
-  "line": 10,
-  "character": 15,
-  "limit": 20,
-  "kinds": ["Method", "Function", "Property"],
-  "includeDetail": true,
-  "includeDocumentation": false
-}
-```
 
 ## Tool 输入参数
 
@@ -925,6 +859,285 @@ completionItem/resolve
 ```
 
 该能力会先请求 `textDocument/prepareCallHierarchy`，再请求 `callHierarchy/outgoingCalls`。
+
+## LSP 补全能力与扩展设计
+
+LSP 协议本身支持代码补全，标准 method 是：
+
+```text
+textDocument/completion
+```
+
+当前 Claude Code 的 `LSP` Tool 没有把补全能力暴露给 AI。也就是说，很多官方 LSP 插件背后的语言服务器本身可能支持补全，但当前 Tool schema 中没有 `completion` operation，AI 不能直接通过现有 `LSP` Tool 调用代码补全。
+
+### 补全请求参数
+
+标准 `textDocument/completion` 请求通常包含：
+
+```json
+{
+  "textDocument": {
+    "uri": "file:///path/to/src/foo.ts"
+  },
+  "position": {
+    "line": 9,
+    "character": 14
+  },
+  "context": {
+    "triggerKind": 1
+  }
+}
+```
+
+其中 `line` 和 `character` 是 LSP 协议的 0-based position。
+
+`context.triggerKind` 常见值：
+
+| 值 | 含义 |
+|---:|---|
+| `1` | 手动触发补全 |
+| `2` | 由触发字符触发，例如 `.`, `:`, `/` |
+| `3` | 重新触发未完成的补全 |
+
+标准请求参数中没有 `limit`、`maxItems`、`onlyKinds` 这类字段。
+
+### 补全返回结果
+
+`textDocument/completion` 可能返回两种结构：
+
+```ts
+CompletionItem[]
+```
+
+或：
+
+```ts
+CompletionList
+```
+
+`CompletionList` 结构类似：
+
+```json
+{
+  "isIncomplete": false,
+  "items": [
+    {
+      "label": "map",
+      "kind": 2,
+      "detail": "method Array<T>.map(...)"
+    }
+  ]
+}
+```
+
+`isIncomplete: true` 表示结果不完整，客户端通常会在用户继续输入后重新请求补全。
+
+### 是否能指定返回数量
+
+标准 LSP completion 请求不支持让服务端只返回指定数量，例如不能标准化地传：
+
+```json
+{
+  "limit": 20
+}
+```
+
+如果需要限制数量，应该由客户端在拿到结果后做截断：
+
+```ts
+items.slice(0, limit)
+```
+
+对于 Claude Code 场景，默认不应把全部补全项返回给 AI，建议本地限制返回数量，例如默认只展示前 20 个。
+
+### 是否能指定返回类型
+
+标准 LSP completion 请求也不支持让服务端只返回某几类补全项，例如不能标准化地传：
+
+```json
+{
+  "onlyKinds": ["Method", "Function"]
+}
+```
+
+但每个 `CompletionItem` 通常会带 `kind` 字段，客户端可以在本地过滤：
+
+```ts
+items.filter(item => item.kind === CompletionItemKind.Method)
+```
+
+常见 `CompletionItemKind` 包括：
+
+| 类型 | 含义 |
+|---|---|
+| `Text` | 文本 |
+| `Method` | 方法 |
+| `Function` | 函数 |
+| `Constructor` | 构造器 |
+| `Field` | 字段 |
+| `Variable` | 变量 |
+| `Class` | 类 |
+| `Interface` | 接口 |
+| `Module` | 模块 |
+| `Property` | 属性 |
+| `Keyword` | 关键字 |
+| `Snippet` | 代码片段 |
+| `File` | 文件 |
+| `Folder` | 目录 |
+
+### 服务端和客户端的职责划分
+
+LSP server 负责语义层面的候选生成。比如：
+
+```ts
+user.
+```
+
+语言服务器通常会根据 `user` 的类型返回该对象上的成员，例如：
+
+- `name`：Property
+- `age`：Property
+- `getName`：Method
+- `updateProfile`：Method
+
+这类“当前位置语义上可以补什么”的判断主要由 LSP server 完成。
+
+客户端负责展示层面的过滤和控制，例如：
+
+- 根据已输入前缀过滤
+- 根据 `CompletionItemKind` 过滤
+- 限制展示数量
+- 按 `sortText` / `filterText` / `label` 排序
+- 控制是否展示 `detail`
+- 控制是否展示 `documentation`
+- 控制是否调用 `completionItem/resolve`
+
+因此，服务端通常会返回“当前位置语义上合理的候选集合”，但不保证只返回变量、只返回函数或只返回方法。如果只想要某类结果，需要客户端再过滤。
+
+### 对象成员补全示例
+
+代码：
+
+```ts
+user.
+```
+
+服务端可能返回：
+
+```text
+name           Property
+age            Property
+getName        Method
+updateProfile  Method
+toString       Method
+```
+
+如果只需要方法，客户端再过滤 `Method`：
+
+```text
+getName        Method
+updateProfile  Method
+toString       Method
+```
+
+### 表达式位置补全示例
+
+代码：
+
+```ts
+const result = ma
+```
+
+服务端可能返回：
+
+```text
+mapUser        Function
+maxCount       Variable
+Math           Module
+Map            Class
+match          Keyword / Snippet
+```
+
+在表达式位置，函数、变量、类、模块、关键字等都可能是合法候选，因此服务端不一定只返回变量。
+
+### 性能和 token 控制
+
+补全结果可能非常多，且每个补全项可能包含较长的 `detail`、`documentation`、`insertText`、`additionalTextEdits` 等字段。对于 Claude Code 这类把结果返回给 AI 的场景，全量返回会带来：
+
+- LSP server 响应变慢
+- 本地处理变慢
+- tool result 过长
+- token 成本升高
+- 干扰模型关注重点
+
+更合理的策略是轻量优先：
+
+| 控制项 | 建议默认值 |
+|---|---:|
+| `limit` | `20` |
+| `includeDetail` | `true` |
+| `includeDocumentation` | `false` |
+| `includeInsertText` | `false` |
+| `includeAdditionalTextEdits` | `false` |
+| `resolveItems` | `false` |
+
+补全结果建议先返回轻量列表，例如：
+
+```text
+Found 128 completion items, showing top 20:
+
+1. map [Method]
+   detail: Array<T>.map(...)
+
+2. length [Property]
+   detail: number
+```
+
+### completionItem/resolve
+
+LSP 还支持按需解析单个补全项：
+
+```text
+completionItem/resolve
+```
+
+很多 IDE 会先请求轻量补全列表，用户选中或停留在某一项时，再调用 `completionItem/resolve` 获取更完整的：
+
+- documentation
+- detail
+- additionalTextEdits
+- auto import edits
+- 更完整的 textEdit
+
+如果 Claude Code 后续扩展补全能力，也适合采用两阶段设计：
+
+1. `completion`：返回轻量候选列表。
+2. `resolveCompletionItem`：按需解析某一个候选项。
+
+### 如果扩展 Claude Code 的 completion operation
+
+最小实现不只是增加 `completion → textDocument/completion` 映射，还需要同步扩展：
+
+1. operation enum：增加 `completion`。
+2. Tool prompt：告诉 AI 可以调用 `completion`。
+3. method 映射：增加 `completion → textDocument/completion`。
+4. 结果格式化：支持 `CompletionItem[]` 和 `CompletionList`。
+5. 输出控制：支持本地 `limit`、`kinds`、`includeDetail`、`includeDocumentation` 等参数。
+
+推荐的 Tool 输入可以设计为：
+
+```json
+{
+  "operation": "completion",
+  "filePath": "src/foo.ts",
+  "line": 10,
+  "character": 15,
+  "limit": 20,
+  "kinds": ["Method", "Function", "Property"],
+  "includeDetail": true,
+  "includeDocumentation": false
+}
+```
 
 ## 运行时细节
 
