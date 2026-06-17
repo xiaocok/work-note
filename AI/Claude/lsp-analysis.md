@@ -601,6 +601,8 @@ Monaco 编辑器 **本身不包含 LSP 客户端实现**，它只定义了一套
 ```text
 LSP 语言服务器
     ↓ JSON-RPC 协议
+后端 WebSocket
+    ↓ WebSocket / Http
 monaco-languageclient（桥接层）
     ↓ 坐标/类型转换
 Monaco Provider API
